@@ -1,14 +1,17 @@
-Kimi Code CLI
+Kimi Agent
 Copyright 2025 Moonshot AI
 
 This product includes software developed at
 Moonshot AI (https://www.moonshot.ai/).
 
-The Kimi Code CLI project (formerly Kimi CLI) contains or reuses code
-that is licensed under the Apache 2.0 license from the following projects:
-- OpenAI Codex (https://github.com/openai/codex)
+This project is a Rust rewrite of Kimi Code CLI
+(https://github.com/MoonshotAI/kimi-cli).
 
-  See: src/kimi_cli/skills/skill-creator/SKILL.md
+This project contains or reuses code that is licensed under the
+Apache 2.0 license from the following projects:
+
+- OpenAI Codex (https://github.com/openai/codex)
+  See: kimi-agent/src/skills/skill-creator/SKILL.md
 
 OpenAI Codex
 Copyright 2025 OpenAI

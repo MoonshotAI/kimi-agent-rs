@@ -36,12 +36,9 @@ are the source of truth, and both sides should change together.
 
 ## Versioning (must-follow)
 
-The Rust workspace version must stay exactly aligned with Python `kimi-cli`:
-
-- Use the same `MAJOR.MINOR` numbers as `kimi-cli`.
-- Patch is always `0` (minor-bump-only).
-- Rust may lag behind in feature completeness, but the version number must not
-  diverge from the corresponding Python release.
+The Rust workspace version must always match the Python `kimi-cli` version exactly
+(`MAJOR.MINOR.PATCH`). Rust may lag behind in feature completeness, but the
+version number must not diverge from the corresponding Python release.
 
 ## Rewrite constraints (from _/PROMPT.md and _/PLAN.md)
 
