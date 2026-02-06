@@ -284,17 +284,38 @@ impl KimiSoul {
         wire_send(WireMessage::ContentPart(ContentPart::Text(TextPart::new(
             "The context has been compacted.",
         ))));
+        self.send_status_update();
         Ok(())
     }
 
     async fn slash_clear(&self) -> anyhow::Result<()> {
         info!("Running `/clear`");
-        let mut context = self.context.lock().await;
-        context.clear().await?;
+        {
+            let mut context = self.context.lock().await;
+            context.clear().await?;
+        }
         wire_send(WireMessage::ContentPart(ContentPart::Text(TextPart::new(
             "The context has been cleared.",
         ))));
+        self.send_status_update();
         Ok(())
+    }
+
+    fn send_status_update(&self) {
+        let context_usage = if let Some(llm) = &self.runtime.llm {
+            match self.context.try_lock() {
+                Ok(context) => context.token_count() as f64 / llm.max_context_size as f64,
+                Err(_) => 0.0,
+            }
+        } else {
+            0.0
+        };
+        let status = StatusUpdate {
+            context_usage: Some(context_usage),
+            token_usage: None,
+            message_id: None,
+        };
+        wire_send(WireMessage::StatusUpdate(status));
     }
 
     async fn slash_yolo(&self) -> anyhow::Result<()> {

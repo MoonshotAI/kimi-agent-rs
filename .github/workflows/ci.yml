@@ -89,6 +89,18 @@ jobs:
         working-directory: kimi-cli
         run: uv sync --frozen --all-extras --all-packages
 
+      - name: Normalize kimi-agent CLI output in tests
+        working-directory: kimi-cli
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("tests_e2e/test_mcp_cli.py")
+          text = path.read_text(encoding="utf-8")
+          text = text.replace("kagent mcp", "kimi-agent mcp")
+          path.write_text(text, encoding="utf-8")
+          PY
+
       - name: Run e2e tests (kimi-cli)
         env:
           UV_PYTHON: ${{ steps.setup-python.outputs.python-path }}
