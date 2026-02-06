@@ -1,4 +1,4 @@
-# Kimi Agent
+# Kimi Agent (Rust)
 
 Rust implementation of [Kimi Code CLI](https://github.com/MoonshotAI/kimi-cli). Wire-only JSON-RPC agent server over stdio.
 
