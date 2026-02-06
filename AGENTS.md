@@ -34,6 +34,15 @@ The Rust and Python implementations must stay in lockstep for any external behav
 When in doubt, Python (`src/kimi_cli`, `packages/kosong`, `packages/kaos`) and `docs/zh/`
 are the source of truth, and both sides should change together.
 
+## Versioning (must-follow)
+
+The Rust workspace version must stay exactly aligned with Python `kimi-cli`:
+
+- Use the same `MAJOR.MINOR` numbers as `kimi-cli`.
+- Patch is always `0` (minor-bump-only).
+- Rust may lag behind in feature completeness, but the version number must not
+  diverge from the corresponding Python release.
+
 ## Rewrite constraints (from _/PROMPT.md and _/PLAN.md)
 
 - Three crates: `kimi-agent`, `kosong`, `kaos`.
