@@ -1,0 +1,3 @@
+[submodule "kimi-cli"]
+	path = kimi-cli
+	url = https://github.com/MoonshotAI/kimi-cli

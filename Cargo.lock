@@ -1581,7 +1581,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "kagent"
+name = "kaos"
+version = "1.8.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "dirs",
+ "futures",
+ "glob",
+ "globset",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "kimi-agent"
 version = "1.8.0"
 dependencies = [
  "anyhow",
@@ -1629,22 +1645,6 @@ dependencies = [
  "webbrowser",
  "wiremock",
  "zip",
-]
-
-[[package]]
-name = "kaos"
-version = "1.8.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "dirs",
- "futures",
- "glob",
- "globset",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
 ]
 
 [[package]]

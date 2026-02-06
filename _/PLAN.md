@@ -1,6 +1,6 @@
 # Rust Rewrite Plan (kimi-cli / kosong / kaos)
 
-Goal: rewrite the core Python implementation in Rust (workspace under `rust/`) with full
+Goal: rewrite the core Python implementation in Rust (workspace in this repo) with full
 behavioral + data-format compatibility, retaining the three-crate split and Wire interface,
 while omitting Print UI, Shell UI, and ACP UI support. All required tests are re-authored in Rust.
 
@@ -77,7 +77,7 @@ divergence from the Python implementation.
 
 ## 0. Constraints & Compatibility Targets
 
-- **Crates**: `rust/kagent`, `rust/kosong`, `rust/kaos` (workspace members).
+- **Crates**: `kimi-agent`, `kosong`, `kaos` (workspace members).
 - **Rust stack**: latest toolchain + edition, `tokio`, `serde`, `anyhow`, `thiserror`,
   `clap`, `reqwest`, plus best‑practice community crates where appropriate.
 - **Binary**: build single executable for macOS/Linux/Windows (no Python runtime).
@@ -100,15 +100,15 @@ divergence from the Python implementation.
 
 ## 1. Workspace & Crate Layout
 
-Create `rust/Cargo.toml` workspace with members:
+Create `Cargo.toml` workspace with members:
 
-- `rust/kagent` (bin + lib)
-- `rust/kosong` (lib)
-- `rust/kaos` (lib)
+- `kimi-agent` (bin + lib)
+- `kosong` (lib)
+- `kaos` (lib)
 
 Target module layout mirroring Python (adjusted for Rust idioms):
 
-- `rust/kosong/src/`:
+- `kosong/src/`:
   - `lib.rs` (re-export core APIs)
   - `message.rs` (ContentPart, Message, ToolCall, ToolCallPart)
   - `chat_provider/mod.rs` (traits, errors, TokenUsage, ThinkingEffort)
@@ -119,13 +119,13 @@ Target module layout mirroring Python (adjusted for Rust idioms):
   - `utils/{typing.rs, aio.rs, jsonschema.rs}`
   - `_generate.rs` + `generate`/`step` in `lib.rs`
 
-- `rust/kaos/src/`:
+- `kaos/src/`:
   - `lib.rs` (Kaos trait, current Kaos, global helpers)
   - `local.rs` (LocalKaos)
   - `path.rs` (KaosPath)
   - `_current.rs` (task‑local/global current Kaos)
 
-- `rust/kagent/src/`:
+- `kimi-agent/src/`:
   - `lib.rs` (core entrypoints)
   - `main.rs` (CLI)
   - `constant.rs`, `exception.rs`
@@ -141,8 +141,8 @@ Target module layout mirroring Python (adjusted for Rust idioms):
   - `utils/` (aio queue, broadcast, path helpers, diff, frontmatter, slashcmd, logging, env)
 
 Add sub‑directory `AGENTS.md` for key module trees (at least):
-`rust/kagent/src/soul/AGENTS.md`, `rust/kagent/src/wire/AGENTS.md`,
-`rust/kosong/src/AGENTS.md`, `rust/kaos/src/AGENTS.md`.
+`kimi-agent/src/soul/AGENTS.md`, `kimi-agent/src/wire/AGENTS.md`,
+`kosong/src/AGENTS.md`, `kaos/src/AGENTS.md`.
 
 ---
 
@@ -382,37 +382,37 @@ Scope review against required Python core modules, with Rust mapping + gap notes
 
 ### 10.1 kimi-cli core (Python → Rust)
 
-- `src/kimi_cli/agentspec.py` → `rust/kagent/src/agentspec.rs` (done).
-- `src/kimi_cli/app.py` → `rust/kagent/src/app.rs` (done; **gap**: logging parity, see 10.4).
-- `src/kimi_cli/cli/*` → `rust/kagent/src/cli/*` (wire-only; print/shell/acp flags omitted).
-- `src/kimi_cli/config.py` → `rust/kagent/src/config.rs` (done).
-- `src/kimi_cli/constant.py` → `rust/kagent/src/constant.rs` (done).
-- `src/kimi_cli/exception.py` → `rust/kagent/src/exception.rs` (done).
-- `src/kimi_cli/llm.py` → `rust/kagent/src/llm.rs` (done).
-- `src/kimi_cli/metadata.py` → `rust/kagent/src/metadata.rs` (done).
-- `src/kimi_cli/session.py` → `rust/kagent/src/session.rs` (done).
-- `src/kimi_cli/share.py` → `rust/kagent/src/share.rs` (done).
-- `src/kimi_cli/skill/*` → `rust/kagent/src/skill/*` (done).
-- `src/kimi_cli/soul/*` → `rust/kagent/src/soul/*` (done).
-- `src/kimi_cli/tools/*` → `rust/kagent/src/tools/*` (done except **gap**: `tools/test.py`).
-- `src/kimi_cli/tools/display.py` → `rust/kosong/src/tooling/mod.rs` display blocks (done).
-- `src/kimi_cli/wire/*` → `rust/kagent/src/wire/*` (done).
-- `src/kimi_cli/ui/wire/*` → `rust/kagent/src/ui/wire/*` (done).
+- `src/kimi_cli/agentspec.py` → `kimi-agent/src/agentspec.rs` (done).
+- `src/kimi_cli/app.py` → `kimi-agent/src/app.rs` (done; **gap**: logging parity, see 10.4).
+- `src/kimi_cli/cli/*` → `kimi-agent/src/cli/*` (wire-only; print/shell/acp flags omitted).
+- `src/kimi_cli/config.py` → `kimi-agent/src/config.rs` (done).
+- `src/kimi_cli/constant.py` → `kimi-agent/src/constant.rs` (done).
+- `src/kimi_cli/exception.py` → `kimi-agent/src/exception.rs` (done).
+- `src/kimi_cli/llm.py` → `kimi-agent/src/llm.rs` (done).
+- `src/kimi_cli/metadata.py` → `kimi-agent/src/metadata.rs` (done).
+- `src/kimi_cli/session.py` → `kimi-agent/src/session.rs` (done).
+- `src/kimi_cli/share.py` → `kimi-agent/src/share.rs` (done).
+- `src/kimi_cli/skill/*` → `kimi-agent/src/skill/*` (done).
+- `src/kimi_cli/soul/*` → `kimi-agent/src/soul/*` (done).
+- `src/kimi_cli/tools/*` → `kimi-agent/src/tools/*` (done except **gap**: `tools/test.py`).
+- `src/kimi_cli/tools/display.py` → `kosong/src/tooling/mod.rs` display blocks (done).
+- `src/kimi_cli/wire/*` → `kimi-agent/src/wire/*` (done).
+- `src/kimi_cli/ui/wire/*` → `kimi-agent/src/ui/wire/*` (done).
 - `src/kimi_cli/ui/shell/*`, `src/kimi_cli/ui/print/*`, `src/kimi_cli/acp/*` → intentionally omitted.
 - `src/kimi_cli/platforms.py` → shell UI only; intentionally omitted.
 
 ### 10.2 kimi-cli utils (Python → Rust)
 
 Used by core runtime/tools and ported:
-- `utils/aioqueue.py` → `rust/kagent/src/utils/aioqueue.rs`.
-- `utils/broadcast.py` → `rust/kagent/src/utils/broadcast.rs`.
-- `utils/diff.py` → `rust/kagent/src/utils/diff.rs`.
-- `utils/environment.py` → `rust/kagent/src/utils/environment.rs`.
-- `utils/frontmatter.py` → `rust/kagent/src/utils/frontmatter.rs`.
-- `utils/message.py` → `rust/kagent/src/utils/message.rs`.
-- `utils/path.py` → `rust/kagent/src/utils/path.rs`.
-- `utils/slashcmd.py` → `rust/kagent/src/utils/slashcmd.rs`.
-- `utils/string.py` → `rust/kagent/src/utils/string.rs`.
+- `utils/aioqueue.py` → `kimi-agent/src/utils/aioqueue.rs`.
+- `utils/broadcast.py` → `kimi-agent/src/utils/broadcast.rs`.
+- `utils/diff.py` → `kimi-agent/src/utils/diff.rs`.
+- `utils/environment.py` → `kimi-agent/src/utils/environment.rs`.
+- `utils/frontmatter.py` → `kimi-agent/src/utils/frontmatter.rs`.
+- `utils/message.py` → `kimi-agent/src/utils/message.rs`.
+- `utils/path.py` → `kimi-agent/src/utils/path.rs`.
+- `utils/slashcmd.py` → `kimi-agent/src/utils/slashcmd.rs`.
+- `utils/string.py` → `kimi-agent/src/utils/string.rs`.
 
 Intentionally omitted or replaced:
 - `utils/aiohttp.py` → replaced by `reqwest` usage in Rust tools.
@@ -423,27 +423,27 @@ Intentionally omitted or replaced:
 
 ### 10.3 kosong core (Python → Rust)
 
-- `message.py` → `rust/kosong/src/message.rs` (done; serde parity).
-- `tooling/*` → `rust/kosong/src/tooling/*` (done; schema + display blocks).
-- `chat_provider/kimi.py` → `rust/kosong/src/chat_provider/kimi.rs` (done).
-- `chat_provider/echo/*` → `rust/kosong/src/chat_provider/echo/*` (done).
+- `message.py` → `kosong/src/message.rs` (done; serde parity).
+- `tooling/*` → `kosong/src/tooling/*` (done; schema + display blocks).
+- `chat_provider/kimi.py` → `kosong/src/chat_provider/kimi.rs` (done).
+- `chat_provider/echo/*` → `kosong/src/chat_provider/echo/*` (done).
 - `chat_provider/chaos.py`, `chat_provider/mock.py`, `chat_provider/openai_common.py`,
   `contrib/*` → intentionally omitted (non‑Kimi providers and contrib features).
-- `utils/jsonschema.py` → `rust/kosong/src/utils/jsonschema.rs` (done).
-- `utils/typing.py` → `rust/kosong/src/utils/typing.rs` (done).
+- `utils/jsonschema.py` → `kosong/src/utils/jsonschema.rs` (done).
+- `utils/typing.py` → `kosong/src/utils/typing.rs` (done).
 - `utils/aio.py` → no direct Rust equivalent required.
 
 ### 10.4 kaos core (Python → Rust)
 
-- `local.py` → `rust/kaos/src/local.rs` (done).
-- `path.py` → `rust/kaos/src/path.rs` (done).
-- `_current.py` → `rust/kaos/src/current.rs` (done).
+- `local.py` → `kaos/src/local.rs` (done).
+- `path.py` → `kaos/src/path.rs` (done).
+- `_current.py` → `kaos/src/current.rs` (done).
 - `ssh.py` → intentionally omitted for this phase.
 
 ### 10.5 New gaps to address (from audit)
 
 1. **Missing test tools**: `src/kimi_cli/tools/test.py` has no Rust equivalent or registry entry.
-   - Status: implemented (`rust/kagent/src/tools/test.rs`) + loader wiring.
+   - Status: implemented (`kimi-agent/src/tools/test.rs`) + loader wiring.
 2. **Logging parity**: Rust CLI parses `--debug/--verbose` but no logging setup or file output.
    - Status: logging init added (`utils/logging.rs`) + basic config/provider/thinking logs.
    - Remaining: add more structured logs in soul/toolset/session if needed.
@@ -460,7 +460,7 @@ Python behavior but isolated to temp share dirs and deterministic ScriptedEcho s
 
 ### 11.1 Test Harness Enhancements
 
-- Add helper utilities in `rust/kagent/tests/e2e_test_utils.rs`:
+- Add helper utilities in `kimi-agent/tests/e2e_test_utils.rs`:
   - Read and classify stdout lines into JSON-RPC responses/events/requests.
   - Helpers to respond to `ApprovalRequest` and `ToolCallRequest` messages.
   - Minimal polling loop to wait for a response ID while servicing incoming requests.
@@ -564,10 +564,10 @@ the Chinese docs. Record and fix any deltas before proceeding with new feature w
   - `packages/kaos/src/kaos/{local,path,_current}` (exclude `ssh.py`)
   - Tests under `tests/` and `tests_ai/` except UI/shell/non-Kimi providers
 - **Rust target scope**:
-  - `rust/kagent/src/*`
-  - `rust/kosong/src/*`
-  - `rust/kaos/src/*`
-  - `rust/kagent/tests/*`, `rust/kosong/tests/*`, `rust/kaos/tests/*`
+  - `kimi-agent/src/*`
+  - `kosong/src/*`
+  - `kaos/src/*`
+  - `kimi-agent/tests/*`, `kosong/tests/*`, `kaos/tests/*`
 - **Behavioral source of truth**:
   - `docs/zh/**` for user-facing behavior
   - Python runtime behavior for edge cases and error messages
@@ -627,7 +627,7 @@ the Chinese docs. Record and fix any deltas before proceeding with new feature w
 ### 12.4 Rescan log (current run)
 
 - Module inventory: captured file lists for `src/kimi_cli`, `packages/kosong/src/kosong`,
-  `packages/kaos/src/kaos`, `rust/kagent/src`, `rust/kosong/src`, `rust/kaos/src`.
+  `packages/kaos/src/kaos`, `kimi-agent/src`, `kosong/src`, `kaos/src`.
 - Wire JSON-RPC parity: aligned UTF-8 handling (lossy), invalid response handling, method-not-found
   error messages, invalid params messaging, and shutdown cleanup to match Python.
 - External tools: aligned builtin conflict detection and rejection reason in wire initialize flow.

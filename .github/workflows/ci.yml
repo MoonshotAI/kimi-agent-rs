@@ -1,0 +1,97 @@
+name: CI (kimi-agent)
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/ci.yml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "AGENTS.md"
+      - "README.md"
+      - "kaos/**"
+      - "kosong/**"
+      - "kimi-agent/**"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/ci.yml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "AGENTS.md"
+      - "README.md"
+      - "kaos/**"
+      - "kosong/**"
+      - "kimi-agent/**"
+
+jobs:
+  rust:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+          - runner: ubuntu-22.04-arm
+          - runner: macos-14
+          - runner: windows-2022
+          - runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Cargo fmt
+        run: cargo fmt --all -- --check
+
+      - name: Cargo check
+        run: cargo check
+
+      - name: Cargo test
+        run: cargo test
+
+      - name: Build kimi-agent
+        run: cargo build -p kimi-agent
+
+  e2e:
+    runs-on: ubuntu-22.04
+    needs: rust
+    steps:
+      - name: Checkout repository (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Python 3.12
+        id: setup-python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v1
+        with:
+          version: "0.8.5"
+
+      - name: Build kimi-agent
+        run: cargo build -p kimi-agent
+
+      - name: Install dependencies (kimi-cli)
+        env:
+          UV_PYTHON: ${{ steps.setup-python.outputs.python-path }}
+        working-directory: kimi-cli
+        run: uv sync --frozen --all-extras --all-packages
+
+      - name: Run e2e tests (kimi-cli)
+        env:
+          UV_PYTHON: ${{ steps.setup-python.outputs.python-path }}
+          KIMI_E2E_WIRE_CMD: ../target/debug/kimi-agent
+        working-directory: kimi-cli
+        run: uv run pytest tests_e2e

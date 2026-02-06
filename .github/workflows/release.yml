@@ -1,0 +1,132 @@
+name: Release (kimi-agent)
+
+on:
+  push:
+    tags:
+      - "[0-9]*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build binaries (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - runner: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+          - runner: macos-14
+            target: aarch64-apple-darwin
+          - runner: windows-2022
+            target: x86_64-pc-windows-msvc
+          - runner: windows-11-arm
+            target: aarch64-pc-windows-msvc
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build kimi-agent release binary
+        run: cargo build -p kimi-agent --release
+
+      - name: Package kimi-agent artifact
+        shell: python
+        env:
+          TAG: ${{ github.ref_name }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          import os
+          import pathlib
+          import tarfile
+          import zipfile
+
+          tag = os.environ["TAG"]
+          target = os.environ["TARGET"]
+
+          dist_dir = pathlib.Path("target") / "release"
+          artifacts_dir = pathlib.Path("artifacts")
+          artifacts_dir.mkdir(parents=True, exist_ok=True)
+
+          is_windows = "windows" in target
+          binary_name = "kimi-agent.exe" if is_windows else "kimi-agent"
+          binary_path = dist_dir / binary_name
+          if not binary_path.exists():
+              raise SystemExit(f"kimi-agent binary not found at {binary_path}")
+
+          if is_windows:
+              archive_name = f"kimi-agent-{tag}-{target}.zip"
+              archive_path = artifacts_dir / archive_name
+              with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as archive_file:
+                  archive_file.write(binary_path, arcname=binary_name)
+          else:
+              archive_name = f"kimi-agent-{tag}-{target}.tar.gz"
+              archive_path = artifacts_dir / archive_name
+              with tarfile.open(archive_path, "w:gz") as archive_file:
+                  archive_file.add(binary_path, arcname="kimi-agent")
+
+          print(f"Built kimi-agent artifact: {archive_path}")
+
+      - name: Set artifact name
+        id: artifact
+        shell: python
+        run: |
+          import os
+          ref = os.environ["GITHUB_REF_NAME"].replace("/", "-")
+          target = "${{ matrix.target }}"
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"name=kimi-agent-{ref}-{target}\n")
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: artifacts/*
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./downloads
+          merge-multiple: true
+
+      - name: Show downloaded files
+        run: ls -laR downloads
+
+      - name: Generate per-file SHA256 sums
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd downloads
+          shopt -s nullglob
+          for f in *.tar.gz *.zip; do
+            sha256sum "$f" > "$f.sha256"
+            echo "sha256($(basename "$f"))=$(cut -d' ' -f1 "$f.sha256")"
+          done
+          ls -la
+
+      - name: Create GitHub Release and upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            downloads/*.tar.gz
+            downloads/*.zip
+            downloads/*.tar.gz.sha256
+            downloads/*.zip.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
