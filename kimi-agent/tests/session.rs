@@ -6,12 +6,12 @@ use filetime::FileTime;
 use serde_json::json;
 use tempfile::TempDir;
 
+use kaos::KaosPath;
 use kimi_agent::session::Session;
 use kimi_agent::wire::{
     TextPart, TurnBegin, UserInput, WIRE_PROTOCOL_VERSION, WireFileMetadata, WireMessage,
     WireMessageRecord,
 };
-use kaos::KaosPath;
 use kosong::message::ContentPart;
 
 static ENV_LOCK: Mutex<()> = Mutex::new(());

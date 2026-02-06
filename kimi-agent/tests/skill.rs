@@ -3,13 +3,13 @@ use std::sync::Arc;
 
 use tempfile::TempDir;
 
-use kimi_agent::skill::{
-    Skill, SkillType, discover_skills, discover_skills_from_roots, find_user_skills_dir,
-    get_builtin_skills_dir, resolve_skills_roots,
-};
 use kaos::{
     CurrentKaosToken, Kaos, KaosPath, KaosProcess, LineStream, LocalKaos, StrOrKaosPath,
     reset_current_kaos, set_current_kaos, with_current_kaos_scope,
+};
+use kimi_agent::skill::{
+    Skill, SkillType, discover_skills, discover_skills_from_roots, find_user_skills_dir,
+    get_builtin_skills_dir, resolve_skills_roots,
 };
 
 struct FixedHomeKaos {

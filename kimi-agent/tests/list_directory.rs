@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use kimi_agent::utils::list_directory;
 use kaos::KaosPath;
+use kimi_agent::utils::list_directory;
 
 #[cfg(unix)]
 #[tokio::test]

@@ -3,6 +3,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 
+use kaos::{
+    CurrentKaosToken, Kaos, KaosPath, LocalKaos, get_current_kaos, reset_current_kaos,
+    set_current_kaos,
+};
 use kimi_agent::config::{
     ModelCapability, MoonshotFetchConfig, MoonshotSearchConfig, get_default_config,
 };
@@ -15,10 +19,6 @@ use kimi_agent::soul::denwarenji::DenwaRenji;
 use kimi_agent::soul::toolset::KimiToolset;
 use kimi_agent::utils::Environment;
 use kimi_agent::wire::WireFile;
-use kaos::{
-    CurrentKaosToken, Kaos, KaosPath, LocalKaos, get_current_kaos, reset_current_kaos,
-    set_current_kaos,
-};
 use kosong::chat_provider::echo::echo::EchoChatProvider;
 use tempfile::TempDir;
 

@@ -3,9 +3,9 @@ mod tool_test_utils;
 use std::future::Future;
 use std::path::PathBuf;
 
+use kaos::with_current_kaos_scope;
 use kimi_agent::soul::toolset::with_current_tool_call;
 use kimi_agent::tools::file::{WriteFile, WriteMode, WriteParams};
-use kaos::with_current_kaos_scope;
 use kosong::message::ToolCall;
 use kosong::tooling::{CallableTool, CallableTool2, DisplayBlock, ToolReturnValue};
 use serde_json::json;

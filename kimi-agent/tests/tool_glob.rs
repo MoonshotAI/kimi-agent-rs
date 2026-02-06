@@ -2,8 +2,8 @@ mod tool_test_utils;
 
 use std::path::PathBuf;
 
-use kimi_agent::tools::file::{Glob, GlobParams, MAX_MATCHES};
 use kaos::KaosPath;
+use kimi_agent::tools::file::{Glob, GlobParams, MAX_MATCHES};
 use kosong::tooling::CallableTool2;
 use tool_test_utils::RuntimeFixture;
 

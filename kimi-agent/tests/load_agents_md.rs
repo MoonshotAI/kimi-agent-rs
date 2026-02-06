@@ -1,7 +1,7 @@
 use tempfile::TempDir;
 
-use kimi_agent::soul::agent::load_agents_md;
 use kaos::KaosPath;
+use kimi_agent::soul::agent::load_agents_md;
 
 #[tokio::test]
 async fn test_load_agents_md_found() {

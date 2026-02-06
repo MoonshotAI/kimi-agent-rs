@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use tempfile::TempDir;
 
+use kaos::KaosPath;
 use kimi_agent::skill::flow::{Flow, FlowEdge, FlowLabel, FlowNode, FlowNodeKind};
 use kimi_agent::skill::{Skill, SkillType};
 use kimi_agent::soul::Soul;
@@ -12,7 +13,6 @@ use kimi_agent::soul::context::Context;
 use kimi_agent::soul::kimisoul::KimiSoul;
 use kimi_agent::soul::toolset::KimiToolset;
 use kimi_agent::utils::SlashCommandInfo;
-use kaos::KaosPath;
 use tool_test_utils::RuntimeFixture;
 
 fn make_flow() -> Flow {
