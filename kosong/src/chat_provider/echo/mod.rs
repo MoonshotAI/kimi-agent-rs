@@ -1,3 +1,5 @@
 pub mod dsl;
-pub mod echo;
+pub mod provider;
 pub mod scripted_echo;
+
+pub use provider::EchoChatProvider;

@@ -19,6 +19,12 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct LocalKaos;
 
+impl Default for LocalKaos {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LocalKaos {
     pub fn new() -> Self {
         Self
@@ -409,15 +415,15 @@ impl Kaos for LocalKaos {
 
     async fn mkdir(&self, path: &KaosPath, parents: bool, exist_ok: bool) -> Result<()> {
         if parents {
-            if let Err(err) = fs::create_dir_all(path.as_path()).await {
-                if !exist_ok {
-                    return Err(err.into());
-                }
-            }
-        } else if let Err(err) = fs::create_dir(path.as_path()).await {
-            if !exist_ok {
+            if let Err(err) = fs::create_dir_all(path.as_path()).await
+                && !exist_ok
+            {
                 return Err(err.into());
             }
+        } else if let Err(err) = fs::create_dir(path.as_path()).await
+            && !exist_ok
+        {
+            return Err(err.into());
         }
         Ok(())
     }

@@ -156,7 +156,7 @@ impl CallableTool2 for Shell {
             return builder.error("Command cannot be empty.", "Empty command");
         }
 
-        let approved = match self
+        let approved = self
             .approval
             .request(
                 self.name(),
@@ -172,10 +172,7 @@ impl CallableTool2 for Shell {
                 ))]),
             )
             .await
-        {
-            Ok(value) => value,
-            Err(_) => false,
-        };
+            .unwrap_or_default();
 
         if !approved {
             return tool_rejected_error();

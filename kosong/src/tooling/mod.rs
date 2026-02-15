@@ -363,17 +363,17 @@ fn normalize_schema(value: &mut Value) {
             if matches!(map.get("format"), Some(Value::String(_))) {
                 map.remove("format");
             }
-            if let Some(Value::Array(types)) = map.get("type") {
-                if types.iter().any(|value| value.as_str() == Some("null")) {
-                    let mut any_of = Vec::new();
-                    for entry in types {
-                        if let Some(kind) = entry.as_str() {
-                            any_of.push(serde_json::json!({ "type": kind }));
-                        }
+            if let Some(Value::Array(types)) = map.get("type")
+                && types.iter().any(|value| value.as_str() == Some("null"))
+            {
+                let mut any_of = Vec::new();
+                for entry in types {
+                    if let Some(kind) = entry.as_str() {
+                        any_of.push(serde_json::json!({ "type": kind }));
                     }
-                    map.remove("type");
-                    map.insert("anyOf".to_string(), Value::Array(any_of));
                 }
+                map.remove("type");
+                map.insert("anyOf".to_string(), Value::Array(any_of));
             }
             for v in map.values_mut() {
                 normalize_schema(v);
@@ -385,12 +385,11 @@ fn normalize_schema(value: &mut Value) {
             }
         }
         Value::Number(number) => {
-            if let Some(float) = number.as_f64() {
-                if float.fract() == 0.0 {
-                    if let Some(int_value) = i64::try_from(float as i128).ok() {
-                        *value = Value::Number(serde_json::Number::from(int_value));
-                    }
-                }
+            if let Some(float) = number.as_f64()
+                && float.fract() == 0.0
+                && let Ok(int_value) = i64::try_from(float as i128)
+            {
+                *value = Value::Number(serde_json::Number::from(int_value));
             }
         }
         _ => {}

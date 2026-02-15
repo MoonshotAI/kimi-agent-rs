@@ -250,10 +250,10 @@ fn find_local_dep(bin_name: &str) -> Option<PathBuf> {
         exe.parent()
             .map(|parent| parent.join("deps").join("bin").join(bin_name))
     });
-    if let Some(path) = exe_dep {
-        if path.is_file() {
-            return Some(path);
-        }
+    if let Some(path) = exe_dep
+        && path.is_file()
+    {
+        return Some(path);
     }
 
     None
@@ -424,10 +424,10 @@ fn extract_tar_bytes(archive_bytes: &[u8], bin_name: &str) -> Result<Vec<u8>, St
     let decoder = flate2::read::GzDecoder::new(std::io::Cursor::new(archive_bytes));
     let mut archive = tar::Archive::new(decoder);
 
-    let mut entries = archive
+    let entries = archive
         .entries()
         .map_err(|err| format!("Failed to read tar archive: {err}"))?;
-    while let Some(entry) = entries.next() {
+    for entry in entries {
         let mut entry = entry.map_err(|err| format!("Failed to read tar entry: {err}"))?;
         let path = entry
             .path()

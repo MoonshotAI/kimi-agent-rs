@@ -27,7 +27,7 @@ pub fn run_info_command(args: InfoArgs) {
             "server_name": NAME,
             "server_version": VERSION,
         });
-        println!("{}", payload.to_string());
+        println!("{}", payload);
         return;
     }
 

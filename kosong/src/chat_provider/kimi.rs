@@ -21,6 +21,9 @@ use crate::message::{
 };
 use crate::tooling::Tool;
 
+type ByteStream = Pin<Box<dyn futures::Stream<Item = Result<Bytes, reqwest::Error>> + Send>>;
+type ParsedKimiResponse = (Vec<StreamedMessagePart>, Option<String>, Option<TokenUsage>);
+
 #[derive(Clone)]
 pub struct Kimi {
     model: String,
@@ -64,7 +67,7 @@ impl Kimi {
         headers.insert(USER_AGENT, HeaderValue::from_static("KimiCLI"));
         if let Some(extra) = default_headers {
             for (k, v) in extra.iter() {
-                if let Some(value) = v.to_str().ok() {
+                if let Ok(value) = v.to_str() {
                     headers.insert(
                         k,
                         HeaderValue::from_str(value).unwrap_or_else(|_| v.clone()),
@@ -346,7 +349,7 @@ impl KimiFiles {
 }
 
 pub struct KimiStreamedMessage {
-    stream: Option<Pin<Box<dyn futures::Stream<Item = Result<Bytes, reqwest::Error>> + Send>>>,
+    stream: Option<ByteStream>,
     buffer: String,
     parts: VecDeque<StreamedMessagePart>,
     id: Option<String>,
@@ -390,10 +393,10 @@ impl KimiStreamedMessage {
                 .and_then(|choices| choices.first())
                 .and_then(|choice| choice.get("usage"))
         });
-        if let Some(usage) = usage_value {
-            if let Some(parsed) = parse_usage(usage) {
-                self.usage = Some(parsed);
-            }
+        if let Some(usage) = usage_value
+            && let Some(parsed) = parse_usage(usage)
+        {
+            self.usage = Some(parsed);
         }
         if let Some(choices) = value.get("choices").and_then(|v| v.as_array()) {
             for choice in choices {
@@ -483,13 +486,13 @@ fn convert_message(message: &Message) -> Result<Value, ChatProviderError> {
     .map_err(|err| ChatProviderError::new(ChatProviderErrorKind::Other, err.to_string()))?;
 
     let mut payload = strip_nulls(payload);
-    if !reasoning_content.is_empty() {
-        if let Value::Object(map) = &mut payload {
-            map.insert(
-                "reasoning_content".to_string(),
-                Value::String(reasoning_content),
-            );
-        }
+    if !reasoning_content.is_empty()
+        && let Value::Object(map) = &mut payload
+    {
+        map.insert(
+            "reasoning_content".to_string(),
+            Value::String(reasoning_content),
+        );
     }
     Ok(payload)
 }
@@ -529,9 +532,7 @@ fn convert_tool(tool: &Tool) -> Value {
     }
 }
 
-fn parse_non_stream_response(
-    value: &Value,
-) -> Result<(Vec<StreamedMessagePart>, Option<String>, Option<TokenUsage>), ChatProviderError> {
+fn parse_non_stream_response(value: &Value) -> Result<ParsedKimiResponse, ChatProviderError> {
     let message_id = value
         .get("id")
         .and_then(|v| v.as_str())
@@ -568,12 +569,12 @@ fn parse_non_stream_response(
             },
         )));
     }
-    if let Some(content) = message.get("content").and_then(|v| v.as_str()) {
-        if !content.is_empty() {
-            parts.push(StreamedMessagePart::Content(ContentPart::Text(
-                TextPart::new(content),
-            )));
-        }
+    if let Some(content) = message.get("content").and_then(|v| v.as_str())
+        && !content.is_empty()
+    {
+        parts.push(StreamedMessagePart::Content(ContentPart::Text(
+            TextPart::new(content),
+        )));
     }
     if let Some(tool_calls) = message.get("tool_calls").and_then(|v| v.as_array()) {
         for tool_call in tool_calls {
@@ -680,10 +681,10 @@ fn parse_usage(value: &Value) -> Option<TokenUsage> {
     let mut cached = 0i64;
     if let Some(cached_tokens) = value.get("cached_tokens").and_then(|v| v.as_i64()) {
         cached = cached_tokens;
-    } else if let Some(details) = value.get("prompt_tokens_details") {
-        if let Some(cached_tokens) = details.get("cached_tokens").and_then(|v| v.as_i64()) {
-            cached = cached_tokens;
-        }
+    } else if let Some(details) = value.get("prompt_tokens_details")
+        && let Some(cached_tokens) = details.get("cached_tokens").and_then(|v| v.as_i64())
+    {
+        cached = cached_tokens;
     }
     let input_other = if prompt_tokens >= cached {
         prompt_tokens - cached

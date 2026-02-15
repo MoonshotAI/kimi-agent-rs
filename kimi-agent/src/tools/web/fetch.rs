@@ -261,10 +261,10 @@ fn collect_meta_tags(document: &Html) -> HashMap<String, String> {
             .or_else(|| value.attr("property"))
             .map(|s| s.to_ascii_lowercase());
         let content = value.attr("content").map(|s| s.trim().to_string());
-        if let (Some(key), Some(content)) = (key, content) {
-            if !content.is_empty() {
-                meta.entry(key).or_insert(content);
-            }
+        if let (Some(key), Some(content)) = (key, content)
+            && !content.is_empty()
+        {
+            meta.entry(key).or_insert(content);
         }
     }
     meta
@@ -347,12 +347,11 @@ fn extract_jsonld_date(document: &Html) -> Option<String> {
     let selector = Selector::parse("script[type=\"application/ld+json\"]").ok()?;
     for node in document.select(&selector) {
         let text = node.inner_html();
-        if let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) {
-            if let Some(date) = find_jsonld_field(&value, "datePublished")
+        if let Ok(value) = serde_json::from_str::<serde_json::Value>(&text)
+            && let Some(date) = find_jsonld_field(&value, "datePublished")
                 .or_else(|| find_jsonld_field(&value, "dateCreated"))
-            {
-                return Some(date);
-            }
+        {
+            return Some(date);
         }
     }
     None
@@ -362,10 +361,10 @@ fn extract_jsonld_author(document: &Html) -> Option<String> {
     let selector = Selector::parse("script[type=\"application/ld+json\"]").ok()?;
     for node in document.select(&selector) {
         let text = node.inner_html();
-        if let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) {
-            if let Some(author) = find_jsonld_author(&value) {
-                return Some(author);
-            }
+        if let Ok(value) = serde_json::from_str::<serde_json::Value>(&text)
+            && let Some(author) = find_jsonld_author(&value)
+        {
+            return Some(author);
         }
     }
     None
@@ -394,10 +393,10 @@ fn find_jsonld_field(value: &serde_json::Value, field: &str) -> Option<String> {
 fn find_jsonld_author(value: &serde_json::Value) -> Option<String> {
     match value {
         serde_json::Value::Object(map) => {
-            if let Some(author) = map.get("author") {
-                if let Some(name) = author.get("name").and_then(|val| val.as_str()) {
-                    return Some(name.to_string());
-                }
+            if let Some(author) = map.get("author")
+                && let Some(name) = author.get("name").and_then(|val| val.as_str())
+            {
+                return Some(name.to_string());
             }
             for (_, child) in map {
                 if let Some(found) = find_jsonld_author(child) {
@@ -406,7 +405,7 @@ fn find_jsonld_author(value: &serde_json::Value) -> Option<String> {
             }
             None
         }
-        serde_json::Value::Array(items) => items.iter().find_map(|item| find_jsonld_author(item)),
+        serde_json::Value::Array(items) => items.iter().find_map(find_jsonld_author),
         _ => None,
     }
 }
@@ -433,12 +432,12 @@ fn split_categories(value: &str) -> Vec<String> {
 fn extract_primary_html(document: &Html) -> Option<String> {
     let selectors = [".comment-body", "article", "main"];
     for selector in selectors {
-        if let Ok(sel) = Selector::parse(selector) {
-            if let Some(node) = document.select(&sel).next() {
-                let html = node.inner_html();
-                if !html.trim().is_empty() {
-                    return Some(html);
-                }
+        if let Ok(sel) = Selector::parse(selector)
+            && let Some(node) = document.select(&sel).next()
+        {
+            let html = node.inner_html();
+            if !html.trim().is_empty() {
+                return Some(html);
             }
         }
     }
@@ -478,15 +477,15 @@ fn build_frontmatter(meta: &ExtractedMetadata) -> String {
     if let Some(value) = meta.date.as_ref() {
         lines.push(format!("date: {}", normalize_scalar(value)));
     }
-    if let Some(values) = meta.categories.as_ref() {
-        if !values.is_empty() {
-            let rendered = values
-                .iter()
-                .map(|item| format!("'{}'", item.replace('\'', "''")))
-                .collect::<Vec<_>>()
-                .join(", ");
-            lines.push(format!("categories: [{rendered}]"));
-        }
+    if let Some(values) = meta.categories.as_ref()
+        && !values.is_empty()
+    {
+        let rendered = values
+            .iter()
+            .map(|item| format!("'{}'", item.replace('\'', "''")))
+            .collect::<Vec<_>>()
+            .join(", ");
+        lines.push(format!("categories: [{rendered}]"));
     }
 
     if lines.len() == 1 {
@@ -497,7 +496,7 @@ fn build_frontmatter(meta: &ExtractedMetadata) -> String {
 }
 
 fn normalize_scalar(value: &str) -> String {
-    let trimmed = value.trim().replace('\n', " ").replace('\r', " ");
+    let trimmed = value.trim().replace(['\n', '\r'], " ");
     trimmed.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 

@@ -16,12 +16,8 @@ pub fn tool_result_to_message(tool_result: &ToolResult) -> Message {
     let mut content = Vec::new();
     if return_value.is_error {
         let mut message = return_value.message.clone();
-        if is_tool_runtime_error(return_value.display.as_slice()) {
-            if !message.is_empty() {
-                message.push_str(
-                    "\nThis is an unexpected error and the tool is probably not working.",
-                );
-            }
+        if is_tool_runtime_error(return_value.display.as_slice()) && !message.is_empty() {
+            message.push_str("\nThis is an unexpected error and the tool is probably not working.");
         }
         if !message.is_empty() {
             content.push(system(&format!("ERROR: {message}")));

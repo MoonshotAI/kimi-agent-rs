@@ -330,16 +330,16 @@ fn normalize_edge_line(line: &str) -> (String, Option<String>) {
         normalized.replace_range(mat.range(), "");
     }
 
-    if label.is_none() {
-        if let Some(caps) = edge_re.captures(&normalized) {
-            label = caps.get(1).map(|m| m.as_str().trim().to_string());
-            normalized = edge_re.replace(&normalized, "-->").to_string();
-        }
+    if label.is_none()
+        && let Some(caps) = edge_re.captures(&normalized)
+    {
+        label = caps.get(1).map(|m| m.as_str().trim().to_string());
+        normalized = edge_re.replace(&normalized, "-->").to_string();
     }
-    if let Some(ref l) = label {
-        if l.is_empty() {
-            label = None;
-        }
+    if let Some(ref l) = label
+        && l.is_empty()
+    {
+        label = None;
     }
     (normalized, label)
 }

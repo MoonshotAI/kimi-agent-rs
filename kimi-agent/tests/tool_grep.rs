@@ -1,6 +1,6 @@
 mod tool_test_utils;
 
-use std::path::PathBuf;
+use std::path::Path;
 
 use kimi_agent::tools::file::{Grep, GrepParams};
 use kimi_agent::tools::utils::DEFAULT_MAX_CHARS;
@@ -24,7 +24,7 @@ fn base_params(pattern: &str, path: &str, output_mode: &str) -> GrepParams {
     }
 }
 
-fn write_fixture_files(dir: &PathBuf) {
+fn write_fixture_files(dir: &Path) {
     let test_file1 = dir.join("test1.py");
     std::fs::write(
         &test_file1,

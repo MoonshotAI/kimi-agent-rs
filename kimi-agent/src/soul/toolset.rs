@@ -153,22 +153,22 @@ impl KimiToolset {
                 continue;
             }
             for (name, server) in parsed {
-                if let McpServerConfig::Http(http) = &server {
-                    if http.auth.as_deref() == Some("oauth") {
-                        let authorized = has_oauth_tokens(&http.url).await.map_err(|err| {
-                            anyhow::anyhow!("Failed to read MCP auth tokens: {err}")
-                        })?;
-                        if !authorized {
-                            self.mcp_servers.insert(
-                                name.clone(),
-                                McpServerInfo::new(McpServerStatus::Unauthorized, server.clone()),
-                            );
-                            warn!(
-                                "Skipping OAuth MCP server '{}': not authorized. Run 'kimi-agent mcp auth {}' first.",
-                                name, name
-                            );
-                            continue;
-                        }
+                if let McpServerConfig::Http(http) = &server
+                    && http.auth.as_deref() == Some("oauth")
+                {
+                    let authorized = has_oauth_tokens(&http.url)
+                        .await
+                        .map_err(|err| anyhow::anyhow!("Failed to read MCP auth tokens: {err}"))?;
+                    if !authorized {
+                        self.mcp_servers.insert(
+                            name.clone(),
+                            McpServerInfo::new(McpServerStatus::Unauthorized, server.clone()),
+                        );
+                        warn!(
+                            "Skipping OAuth MCP server '{}': not authorized. Run 'kimi-agent mcp auth {}' first.",
+                            name, name
+                        );
+                        continue;
                     }
                 }
 
@@ -462,15 +462,16 @@ pub fn parse_mcp_config(value: &Value) -> Result<HashMap<String, McpServerConfig
 }
 
 fn build_client_info() -> ClientInfo {
-    let mut info = ClientInfo::default();
-    info.client_info = Implementation {
-        name: NAME.to_string(),
-        title: None,
-        version: VERSION.to_string(),
-        icons: None,
-        website_url: None,
-    };
-    info
+    ClientInfo {
+        client_info: Implementation {
+            name: NAME.to_string(),
+            title: None,
+            version: VERSION.to_string(),
+            icons: None,
+            website_url: None,
+        },
+        ..Default::default()
+    }
 }
 
 fn normalize_http_transport(transport: &Option<String>) -> Result<(), String> {
@@ -752,15 +753,12 @@ impl CallableTool for McpTool {
 
     async fn call(&self, arguments: Value) -> ToolReturnValue {
         let description = format!("Call MCP tool `{}`.", self.base.name);
-        let approved = match self
+        let approved = self
             .runtime
             .approval
             .request(&self.base.name, &self.action_name, &description, None)
             .await
-        {
-            Ok(value) => value,
-            Err(_) => false,
-        };
+            .unwrap_or_default();
         if !approved {
             return tool_rejected_error();
         }

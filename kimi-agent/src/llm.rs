@@ -42,66 +42,66 @@ pub fn augment_provider_with_env_vars(
 
     match provider.provider_type {
         ProviderType::Kimi => {
-            if let Ok(base_url) = env::var("KIMI_BASE_URL") {
-                if !base_url.is_empty() {
-                    provider.base_url = base_url.clone();
-                    applied.insert("KIMI_BASE_URL".to_string(), base_url);
-                }
+            if let Ok(base_url) = env::var("KIMI_BASE_URL")
+                && !base_url.is_empty()
+            {
+                provider.base_url = base_url.clone();
+                applied.insert("KIMI_BASE_URL".to_string(), base_url);
             }
-            if let Ok(api_key) = env::var("KIMI_API_KEY") {
-                if !api_key.is_empty() {
-                    provider.api_key = api_key;
-                    applied.insert("KIMI_API_KEY".to_string(), "******".to_string());
-                }
+            if let Ok(api_key) = env::var("KIMI_API_KEY")
+                && !api_key.is_empty()
+            {
+                provider.api_key = api_key;
+                applied.insert("KIMI_API_KEY".to_string(), "******".to_string());
             }
-            if let Ok(model_name) = env::var("KIMI_MODEL_NAME") {
-                if !model_name.is_empty() {
-                    model.model = model_name.clone();
-                    applied.insert("KIMI_MODEL_NAME".to_string(), model_name);
-                }
+            if let Ok(model_name) = env::var("KIMI_MODEL_NAME")
+                && !model_name.is_empty()
+            {
+                model.model = model_name.clone();
+                applied.insert("KIMI_MODEL_NAME".to_string(), model_name);
             }
-            if let Ok(max_context_size) = env::var("KIMI_MODEL_MAX_CONTEXT_SIZE") {
-                if !max_context_size.is_empty() {
-                    let value = parse_env_i64(&max_context_size)?;
-                    model.max_context_size = value;
-                    applied.insert("KIMI_MODEL_MAX_CONTEXT_SIZE".to_string(), max_context_size);
-                }
+            if let Ok(max_context_size) = env::var("KIMI_MODEL_MAX_CONTEXT_SIZE")
+                && !max_context_size.is_empty()
+            {
+                let value = parse_env_i64(&max_context_size)?;
+                model.max_context_size = value;
+                applied.insert("KIMI_MODEL_MAX_CONTEXT_SIZE".to_string(), max_context_size);
             }
-            if let Ok(caps) = env::var("KIMI_MODEL_CAPABILITIES") {
-                if !caps.is_empty() {
-                    let mut parsed = HashSet::new();
-                    for cap in caps.split(',').map(|s| s.trim().to_lowercase()) {
-                        match cap.as_str() {
-                            "image_in" => {
-                                parsed.insert(ModelCapability::ImageIn);
-                            }
-                            "video_in" => {
-                                parsed.insert(ModelCapability::VideoIn);
-                            }
-                            "thinking" => {
-                                parsed.insert(ModelCapability::Thinking);
-                            }
-                            "always_thinking" => {
-                                parsed.insert(ModelCapability::AlwaysThinking);
-                            }
-                            _ => {}
+            if let Ok(caps) = env::var("KIMI_MODEL_CAPABILITIES")
+                && !caps.is_empty()
+            {
+                let mut parsed = HashSet::new();
+                for cap in caps.split(',').map(|s| s.trim().to_lowercase()) {
+                    match cap.as_str() {
+                        "image_in" => {
+                            parsed.insert(ModelCapability::ImageIn);
                         }
+                        "video_in" => {
+                            parsed.insert(ModelCapability::VideoIn);
+                        }
+                        "thinking" => {
+                            parsed.insert(ModelCapability::Thinking);
+                        }
+                        "always_thinking" => {
+                            parsed.insert(ModelCapability::AlwaysThinking);
+                        }
+                        _ => {}
                     }
-                    model.capabilities = Some(parsed);
-                    applied.insert("KIMI_MODEL_CAPABILITIES".to_string(), caps);
                 }
+                model.capabilities = Some(parsed);
+                applied.insert("KIMI_MODEL_CAPABILITIES".to_string(), caps);
             }
         }
         ProviderType::OpenaiLegacy | ProviderType::OpenaiResponses => {
-            if let Ok(base_url) = env::var("OPENAI_BASE_URL") {
-                if !base_url.is_empty() {
-                    provider.base_url = base_url;
-                }
+            if let Ok(base_url) = env::var("OPENAI_BASE_URL")
+                && !base_url.is_empty()
+            {
+                provider.base_url = base_url;
             }
-            if let Ok(api_key) = env::var("OPENAI_API_KEY") {
-                if !api_key.is_empty() {
-                    provider.api_key = api_key;
-                }
+            if let Ok(api_key) = env::var("OPENAI_API_KEY")
+                && !api_key.is_empty()
+            {
+                provider.api_key = api_key;
             }
         }
         _ => {}
@@ -156,30 +156,30 @@ pub async fn create_llm(
                     Value::String(session_id.to_string()),
                 );
             }
-            if let Ok(value) = env::var("KIMI_MODEL_TEMPERATURE") {
-                if !value.is_empty() {
-                    let parsed = parse_env_f64(&value)?;
-                    kwargs.insert("temperature".to_string(), Value::from(parsed));
-                }
+            if let Ok(value) = env::var("KIMI_MODEL_TEMPERATURE")
+                && !value.is_empty()
+            {
+                let parsed = parse_env_f64(&value)?;
+                kwargs.insert("temperature".to_string(), Value::from(parsed));
             }
-            if let Ok(value) = env::var("KIMI_MODEL_TOP_P") {
-                if !value.is_empty() {
-                    let parsed = parse_env_f64(&value)?;
-                    kwargs.insert("top_p".to_string(), Value::from(parsed));
-                }
+            if let Ok(value) = env::var("KIMI_MODEL_TOP_P")
+                && !value.is_empty()
+            {
+                let parsed = parse_env_f64(&value)?;
+                kwargs.insert("top_p".to_string(), Value::from(parsed));
             }
-            if let Ok(value) = env::var("KIMI_MODEL_MAX_TOKENS") {
-                if !value.is_empty() {
-                    let parsed = parse_env_i64(&value)?;
-                    kwargs.insert("max_tokens".to_string(), Value::from(parsed));
-                }
+            if let Ok(value) = env::var("KIMI_MODEL_MAX_TOKENS")
+                && !value.is_empty()
+            {
+                let parsed = parse_env_i64(&value)?;
+                kwargs.insert("max_tokens".to_string(), Value::from(parsed));
             }
             if !kwargs.is_empty() {
                 kimi = kimi.with_generation_kwargs(kwargs);
             }
             Box::new(kimi)
         }
-        ProviderType::Echo => Box::new(kosong::chat_provider::echo::echo::EchoChatProvider),
+        ProviderType::Echo => Box::new(kosong::chat_provider::echo::EchoChatProvider),
         ProviderType::ScriptedEcho => {
             if let Some(envs) = &provider.env {
                 for (key, value) in envs {
@@ -282,13 +282,13 @@ async fn load_scripted_echo_scripts() -> Result<Vec<String>, LLMError> {
         .await
         .map_err(|err| LLMError::ScriptedEcho(err.to_string()))?;
     if let Ok(value) = serde_json::from_str::<Value>(&text) {
-        if let Value::Array(items) = value {
-            if items.iter().all(|item| matches!(item, Value::String(_))) {
-                return Ok(items
-                    .into_iter()
-                    .filter_map(|item| item.as_str().map(|s| s.to_string()))
-                    .collect());
-            }
+        if let Value::Array(items) = value
+            && items.iter().all(|item| matches!(item, Value::String(_)))
+        {
+            return Ok(items
+                .into_iter()
+                .filter_map(|item| item.as_str().map(|s| s.to_string()))
+                .collect());
         }
         return Err(LLMError::ScriptedEcho(
             "Scripted echo JSON must be an array of strings.".to_string(),

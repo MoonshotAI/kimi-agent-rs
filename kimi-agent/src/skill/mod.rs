@@ -293,7 +293,7 @@ fn parse_fence_open(line: &str) -> Option<(String, char, String)> {
     if count < 3 {
         return None;
     }
-    let fence = std::iter::repeat(first).take(count).collect::<String>();
+    let fence = std::iter::repeat_n(first, count).collect::<String>();
     let info = line[count..].trim().to_string();
     Some((fence, first, info))
 }

@@ -33,21 +33,20 @@ fn resolve_pointer(root: &Value, pointer: &str) -> Option<Value> {
 fn traverse(node: &mut Value, root: &Value) -> Value {
     match node {
         Value::Object(map) => {
-            if let Some(Value::String(ref_path)) = map.get("$ref") {
-                if ref_path.starts_with('#') {
-                    if let Some(target) = resolve_pointer(root, ref_path) {
-                        let mut resolved = target;
-                        resolved = traverse(&mut resolved, root);
-                        if let Value::Object(_) = resolved {
-                            map.remove("$ref");
-                            if let Value::Object(target_map) = resolved {
-                                for (k, v) in target_map {
-                                    map.insert(k, v);
-                                }
-                            }
-                            return Value::Object(map.clone());
+            if let Some(Value::String(ref_path)) = map.get("$ref")
+                && ref_path.starts_with('#')
+                && let Some(target) = resolve_pointer(root, ref_path)
+            {
+                let mut resolved = target;
+                resolved = traverse(&mut resolved, root);
+                if let Value::Object(_) = resolved {
+                    map.remove("$ref");
+                    if let Value::Object(target_map) = resolved {
+                        for (k, v) in target_map {
+                            map.insert(k, v);
                         }
                     }
+                    return Value::Object(map.clone());
                 }
             }
             let keys: Vec<String> = map.keys().cloned().collect();

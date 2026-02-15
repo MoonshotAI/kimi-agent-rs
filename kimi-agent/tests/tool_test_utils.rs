@@ -19,7 +19,7 @@ use kimi_agent::soul::denwarenji::DenwaRenji;
 use kimi_agent::soul::toolset::KimiToolset;
 use kimi_agent::utils::Environment;
 use kimi_agent::wire::WireFile;
-use kosong::chat_provider::echo::echo::EchoChatProvider;
+use kosong::chat_provider::echo::EchoChatProvider;
 use tempfile::TempDir;
 
 pub struct RuntimeFixture {
@@ -142,6 +142,12 @@ impl RuntimeFixture {
     }
 }
 
+impl Default for RuntimeFixture {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[allow(dead_code)]
 pub struct TestKaos {
     inner: LocalKaos,
@@ -259,4 +265,9 @@ impl Drop for TestKaosGuard {
 
 pub fn normalize_newlines(text: &str) -> String {
     text.replace("\r\n", "\n").replace('\r', "\n")
+}
+
+#[test]
+fn test_normalize_newlines() {
+    assert_eq!(normalize_newlines("a\r\nb\rc\n"), "a\nb\nc\n");
 }

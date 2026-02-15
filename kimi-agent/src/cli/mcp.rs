@@ -176,10 +176,10 @@ async fn mcp_add(args: McpAddArgs) -> Result<()> {
                     map.insert("headers".to_string(), json!(headers));
                 }
             }
-            if let Some(auth) = args.auth.as_ref() {
-                if let Some(map) = server.as_object_mut() {
-                    map.insert("auth".to_string(), json!(auth));
-                }
+            if let Some(auth) = args.auth.as_ref()
+                && let Some(map) = server.as_object_mut()
+            {
+                map.insert("auth".to_string(), json!(auth));
             }
             servers.insert(args.name.clone(), server);
         }
@@ -226,10 +226,10 @@ async fn mcp_list() -> Result<()> {
 
     for (name, server) in servers.iter() {
         let mut auth_required = false;
-        if server.get("auth").and_then(Value::as_str) == Some("oauth") {
-            if let Some(url) = server.get("url").and_then(Value::as_str) {
-                auth_required = !has_oauth_tokens(url).await?;
-            }
+        if server.get("auth").and_then(Value::as_str) == Some("oauth")
+            && let Some(url) = server.get("url").and_then(Value::as_str)
+        {
+            auth_required = !has_oauth_tokens(url).await?;
         }
         let line = describe_mcp_server(name, server, auth_required);
         println!("  {line}");

@@ -117,7 +117,7 @@ impl CallableTool2 for WriteFile {
             FILE_ACTION_EDIT_OUTSIDE
         };
 
-        let approved = match self
+        let approved = self
             .approval
             .request(
                 self.name(),
@@ -126,10 +126,7 @@ impl CallableTool2 for WriteFile {
                 Some(diff_blocks.clone()),
             )
             .await
-        {
-            Ok(value) => value,
-            Err(_) => false,
-        };
+            .unwrap_or_default();
         if !approved {
             return tool_rejected_error();
         }

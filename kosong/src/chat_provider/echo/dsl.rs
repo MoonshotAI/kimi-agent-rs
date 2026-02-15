@@ -6,9 +6,9 @@ use crate::message::{
     ThinkPart, ToolCall, ToolCallFunction, ToolCallPart, VideoURL, VideoURLPart,
 };
 
-pub fn parse_echo_script(
-    script: &str,
-) -> Result<(Vec<StreamedMessagePart>, Option<String>, Option<TokenUsage>), ChatProviderError> {
+type ParsedEchoScript = (Vec<StreamedMessagePart>, Option<String>, Option<TokenUsage>);
+
+pub fn parse_echo_script(script: &str) -> Result<ParsedEchoScript, ChatProviderError> {
     let mut parts = Vec::new();
     let mut message_id = None;
     let mut usage = None;

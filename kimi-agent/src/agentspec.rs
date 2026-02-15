@@ -22,16 +22,11 @@ pub fn okabe_agent_file() -> PathBuf {
     get_agents_dir().join("okabe").join("agent.yaml")
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub enum Inheritable<T> {
+    #[default]
     Inherit,
     Value(T),
-}
-
-impl<T> Default for Inheritable<T> {
-    fn default() -> Self {
-        Inheritable::Inherit
-    }
 }
 
 impl<T> Inheritable<T> {
@@ -234,14 +229,14 @@ async fn load_agent_spec_file(agent_file: &Path) -> Result<AgentSpec, AgentSpecE
     let mut agent_spec: AgentSpec = serde_yaml::from_value(agent_value)
         .map_err(|err| AgentSpecError::new(format!("Invalid agent spec file: {err}")))?;
 
-    if let Inheritable::Value(path) = &mut agent_spec.system_prompt_path {
-        if !path.is_absolute() {
-            let joined = agent_file
-                .parent()
-                .unwrap_or_else(|| Path::new("."))
-                .join(&path);
-            *path = tokio::fs::canonicalize(&joined).await.unwrap_or(joined);
-        }
+    if let Inheritable::Value(path) = &mut agent_spec.system_prompt_path
+        && !path.is_absolute()
+    {
+        let joined = agent_file
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join(&path);
+        *path = tokio::fs::canonicalize(&joined).await.unwrap_or(joined);
     }
 
     if let Inheritable::Value(Some(subagents)) = &mut agent_spec.subagents {

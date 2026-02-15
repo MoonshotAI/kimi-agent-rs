@@ -39,13 +39,12 @@ fn split_lines_keepends(text: &str) -> Vec<&str> {
     while let Some((idx, ch)) = iter.next() {
         if is_line_break(ch) {
             let mut end = idx + ch.len_utf8();
-            if ch == '\r' {
-                if let Some(&(next_idx, next_ch)) = iter.peek() {
-                    if next_ch == '\n' {
-                        iter.next();
-                        end = next_idx + next_ch.len_utf8();
-                    }
-                }
+            if ch == '\r'
+                && let Some(&(next_idx, next_ch)) = iter.peek()
+                && next_ch == '\n'
+            {
+                iter.next();
+                end = next_idx + next_ch.len_utf8();
             }
             lines.push(&text[start..end]);
             start = end;

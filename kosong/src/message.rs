@@ -254,10 +254,10 @@ impl ToolCall {
     pub fn merge_in_place(&mut self, other: &ToolCallPart) -> bool {
         if self.function.arguments.is_none() {
             self.function.arguments = other.arguments_part.clone();
-        } else if let Some(ref mut args) = self.function.arguments {
-            if let Some(part) = &other.arguments_part {
-                args.push_str(part);
-            }
+        } else if let Some(ref mut args) = self.function.arguments
+            && let Some(part) = &other.arguments_part
+        {
+            args.push_str(part);
         }
         true
     }
@@ -272,10 +272,10 @@ impl ToolCallPart {
     pub fn merge_in_place(&mut self, other: &ToolCallPart) -> bool {
         if self.arguments_part.is_none() {
             self.arguments_part = other.arguments_part.clone();
-        } else if let Some(ref mut args) = self.arguments_part {
-            if let Some(part) = &other.arguments_part {
-                args.push_str(part);
-            }
+        } else if let Some(ref mut args) = self.arguments_part
+            && let Some(part) = &other.arguments_part
+        {
+            args.push_str(part);
         }
         true
     }
@@ -391,10 +391,10 @@ fn serialize_content<S>(content: &[ContentPart], serializer: S) -> Result<S::Ok,
 where
     S: Serializer,
 {
-    if content.len() == 1 {
-        if let ContentPart::Text(text) = &content[0] {
-            return serializer.serialize_str(&text.text);
-        }
+    if content.len() == 1
+        && let ContentPart::Text(text) = &content[0]
+    {
+        return serializer.serialize_str(&text.text);
     }
     content.serialize(serializer)
 }

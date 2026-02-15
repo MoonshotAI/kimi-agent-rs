@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 use futures::StreamExt;
@@ -237,12 +237,11 @@ impl Session {
                         if let Some(name) = path.file_name().and_then(|s| s.to_str()) {
                             session_ids.insert(name.to_string());
                         }
-                    } else if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-                        if ext == "jsonl" {
-                            if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                                session_ids.insert(stem.to_string());
-                            }
-                        }
+                    } else if let Some(ext) = path.extension().and_then(|s| s.to_str())
+                        && ext == "jsonl"
+                        && let Some(stem) = path.file_stem().and_then(|s| s.to_str())
+                    {
+                        session_ids.insert(stem.to_string());
                     }
                 }
                 Ok(None) => break,
@@ -322,7 +321,7 @@ impl Session {
     }
 }
 
-async fn migrate_session_context_file(sessions_dir: &PathBuf, session_id: &str) {
+async fn migrate_session_context_file(sessions_dir: &Path, session_id: &str) {
     let old_context_file = sessions_dir.join(format!("{session_id}.jsonl"));
     let new_context_file = sessions_dir.join(session_id).join("context.jsonl");
     if tokio::fs::metadata(&old_context_file).await.is_ok()

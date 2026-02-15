@@ -138,7 +138,7 @@ impl CallableTool2 for Glob {
                 filtered.push(entry);
             }
         }
-        filtered.sort_by(|a, b| a.to_string_lossy().cmp(&b.to_string_lossy()));
+        filtered.sort_by_key(|a| a.to_string_lossy());
 
         let mut message = if filtered.is_empty() {
             format!("No matches found for pattern `{}`.", params.pattern)
