@@ -427,7 +427,7 @@ impl StreamedMessage for KimiStreamedMessage {
                         if line.is_empty() {
                             continue;
                         }
-                        if let Some(data) = line.strip_prefix("data: ") {
+                        if let Some(data) = line.strip_prefix("data:").map(|d| d.trim_start()) {
                             if data.trim() == "[DONE]" {
                                 self.stream = None;
                                 return Ok(None);
