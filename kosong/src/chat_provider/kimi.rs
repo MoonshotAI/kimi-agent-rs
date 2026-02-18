@@ -347,7 +347,7 @@ impl KimiFiles {
 
 pub struct KimiStreamedMessage {
     stream: Option<Pin<Box<dyn futures::Stream<Item = Result<Bytes, reqwest::Error>> + Send>>>,
-    buffer: String,
+    buffer: Vec<u8>,
     parts: VecDeque<StreamedMessagePart>,
     id: Option<String>,
     usage: Option<TokenUsage>,
@@ -358,7 +358,7 @@ impl KimiStreamedMessage {
         let stream = resp.bytes_stream();
         Self {
             stream: Some(Box::pin(stream)),
-            buffer: String::new(),
+            buffer: Vec::new(),
             parts: VecDeque::new(),
             id: None,
             usage: None,
@@ -372,7 +372,7 @@ impl KimiStreamedMessage {
     ) -> Self {
         Self {
             stream: None,
-            buffer: String::new(),
+            buffer: Vec::new(),
             parts: parts.into(),
             id,
             usage,
@@ -419,11 +419,12 @@ impl StreamedMessage for KimiStreamedMessage {
             };
             match stream.next().await {
                 Some(Ok(bytes)) => {
-                    let chunk = String::from_utf8_lossy(&bytes);
-                    self.buffer.push_str(&chunk);
-                    while let Some(pos) = self.buffer.find('\n') {
-                        let line = self.buffer[..pos].trim().to_string();
-                        self.buffer = self.buffer[pos + 1..].to_string();
+                    self.buffer.extend_from_slice(&bytes);
+                    while let Some(pos) = self.buffer.iter().position(|&b| b == b'\n') {
+                        let line_bytes = self.buffer[..pos].to_vec();
+                        self.buffer = self.buffer[pos + 1..].to_vec();
+                        let line = String::from_utf8_lossy(&line_bytes);
+                        let line = line.trim();
                         if line.is_empty() {
                             continue;
                         }
