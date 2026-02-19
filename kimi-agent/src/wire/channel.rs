@@ -196,39 +196,15 @@ impl WireSoulSide {
     }
 
     fn merge_tool_call(&self, call: ToolCall) {
-        let mut buffer = self.merge_buffer.lock().unwrap();
-        match buffer.as_mut() {
-            None => {
-                *buffer = Some(WireMessage::ToolCall(call));
-            }
-            Some(WireMessage::ToolCall(existing)) => {
-                if existing.id != call.id || existing.function.name != call.function.name {
-                    let flushed = buffer.take();
-                    drop(buffer);
-                    if let Some(msg) = flushed {
-                        let _ = self.merged_queue.publish_nowait(msg);
-                    }
-                    let mut buffer = self.merge_buffer.lock().unwrap();
-                    *buffer = Some(WireMessage::ToolCall(call));
-                } else {
-                    let flushed = buffer.take();
-                    drop(buffer);
-                    if let Some(msg) = flushed {
-                        let _ = self.merged_queue.publish_nowait(msg);
-                    }
-                    let mut buffer = self.merge_buffer.lock().unwrap();
-                    *buffer = Some(WireMessage::ToolCall(call));
-                }
-            }
-            _ => {
-                let flushed = buffer.take();
-                drop(buffer);
-                if let Some(msg) = flushed {
-                    let _ = self.merged_queue.publish_nowait(msg);
-                }
-                let mut buffer = self.merge_buffer.lock().unwrap();
-                *buffer = Some(WireMessage::ToolCall(call));
-            }
+        let flushed = {
+            let mut buffer = self.merge_buffer.lock().unwrap();
+            let flushed = buffer.take();
+            *buffer = Some(WireMessage::ToolCall(call));
+            flushed
+        };
+
+        if let Some(msg) = flushed {
+            let _ = self.merged_queue.publish_nowait(msg);
         }
     }
 }
@@ -261,16 +237,9 @@ struct WireRecorder {
 impl WireRecorder {
     fn new(wire_file: WireFile, queue: Queue<WireMessage>) -> Self {
         let task = tokio::spawn(async move {
-            loop {
-                match queue.get().await {
-                    Ok(msg) => {
-                        if let Err(err) =
-                            wire_file.append_message(&msg, Some(now_timestamp())).await
-                        {
-                            error!("Failed to append wire message: {}", err);
-                        }
-                    }
-                    Err(_) => break,
+            while let Ok(msg) = queue.get().await {
+                if let Err(err) = wire_file.append_message(&msg, Some(now_timestamp())).await {
+                    error!("Failed to append wire message: {}", err);
                 }
             }
         });

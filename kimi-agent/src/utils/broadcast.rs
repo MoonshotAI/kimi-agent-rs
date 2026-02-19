@@ -6,6 +6,12 @@ pub struct BroadcastQueue<T: Clone> {
     queues: Mutex<Vec<Queue<T>>>,
 }
 
+impl<T: Clone> Default for BroadcastQueue<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: Clone> BroadcastQueue<T> {
     pub fn new() -> Self {
         Self {

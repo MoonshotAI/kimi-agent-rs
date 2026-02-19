@@ -127,12 +127,12 @@ impl WireServer {
                 }
             };
 
-            if let Some(version) = &msg.jsonrpc {
-                if version != "2.0" {
-                    self.send_error_nullable(error_codes::INVALID_REQUEST, "Invalid request", None)
-                        .await;
-                    continue;
-                }
+            if let Some(version) = &msg.jsonrpc
+                && version != "2.0"
+            {
+                self.send_error_nullable(error_codes::INVALID_REQUEST, "Invalid request", None)
+                    .await;
+                continue;
             }
 
             if msg.is_response() {

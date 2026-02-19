@@ -252,12 +252,17 @@ impl ToolCall {
     }
 
     pub fn merge_in_place(&mut self, other: &ToolCallPart) -> bool {
+        if let Some(tool_call_id) = &other.tool_call_id
+            && tool_call_id != &self.id
+        {
+            return false;
+        }
         if self.function.arguments.is_none() {
             self.function.arguments = other.arguments_part.clone();
-        } else if let Some(ref mut args) = self.function.arguments {
-            if let Some(part) = &other.arguments_part {
-                args.push_str(part);
-            }
+        } else if let Some(ref mut args) = self.function.arguments
+            && let Some(part) = &other.arguments_part
+        {
+            args.push_str(part);
         }
         true
     }
@@ -266,16 +271,26 @@ impl ToolCall {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ToolCallPart {
     pub arguments_part: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_call_id: Option<String>,
 }
 
 impl ToolCallPart {
     pub fn merge_in_place(&mut self, other: &ToolCallPart) -> bool {
+        if let (Some(left), Some(right)) = (&self.tool_call_id, &other.tool_call_id)
+            && left != right
+        {
+            return false;
+        }
+        if self.tool_call_id.is_none() {
+            self.tool_call_id = other.tool_call_id.clone();
+        }
         if self.arguments_part.is_none() {
             self.arguments_part = other.arguments_part.clone();
-        } else if let Some(ref mut args) = self.arguments_part {
-            if let Some(part) = &other.arguments_part {
-                args.push_str(part);
-            }
+        } else if let Some(ref mut args) = self.arguments_part
+            && let Some(part) = &other.arguments_part
+        {
+            args.push_str(part);
         }
         true
     }
@@ -391,10 +406,10 @@ fn serialize_content<S>(content: &[ContentPart], serializer: S) -> Result<S::Ok,
 where
     S: Serializer,
 {
-    if content.len() == 1 {
-        if let ContentPart::Text(text) = &content[0] {
-            return serializer.serialize_str(&text.text);
-        }
+    if content.len() == 1
+        && let ContentPart::Text(text) = &content[0]
+    {
+        return serializer.serialize_str(&text.text);
     }
     content.serialize(serializer)
 }

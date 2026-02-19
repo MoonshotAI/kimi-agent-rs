@@ -1,10 +1,10 @@
 use std::path::Path;
-use std::sync::Mutex;
 use std::time::{Duration, SystemTime};
 
 use filetime::FileTime;
 use serde_json::json;
 use tempfile::TempDir;
+use tokio::sync::Mutex;
 
 use kaos::KaosPath;
 use kimi_agent::session::Session;
@@ -14,7 +14,7 @@ use kimi_agent::wire::{
 };
 use kosong::message::ContentPart;
 
-static ENV_LOCK: Mutex<()> = Mutex::new(());
+static ENV_LOCK: Mutex<()> = Mutex::const_new(());
 
 struct EnvGuard {
     key: &'static str,
@@ -99,7 +99,7 @@ fn write_context_message(context_file: &Path, text: &str) {
 
 #[tokio::test]
 async fn test_create_sets_fallback_title() {
-    let _lock = ENV_LOCK.lock().unwrap();
+    let _lock = ENV_LOCK.lock().await;
     let home_dir = TempDir::new().expect("home dir");
     let _env = set_home_env(home_dir.path());
 
@@ -113,7 +113,7 @@ async fn test_create_sets_fallback_title() {
 
 #[tokio::test]
 async fn test_find_uses_wire_title() {
-    let _lock = ENV_LOCK.lock().unwrap();
+    let _lock = ENV_LOCK.lock().await;
     let home_dir = TempDir::new().expect("home dir");
     let _env = set_home_env(home_dir.path());
 
@@ -135,7 +135,7 @@ async fn test_find_uses_wire_title() {
 
 #[tokio::test]
 async fn test_list_sorts_by_updated_and_titles() {
-    let _lock = ENV_LOCK.lock().unwrap();
+    let _lock = ENV_LOCK.lock().await;
     let home_dir = TempDir::new().expect("home dir");
     let _env = set_home_env(home_dir.path());
 
@@ -167,7 +167,7 @@ async fn test_list_sorts_by_updated_and_titles() {
 
 #[tokio::test]
 async fn test_continue_without_last_returns_none() {
-    let _lock = ENV_LOCK.lock().unwrap();
+    let _lock = ENV_LOCK.lock().await;
     let home_dir = TempDir::new().expect("home dir");
     let _env = set_home_env(home_dir.path());
 
@@ -180,7 +180,7 @@ async fn test_continue_without_last_returns_none() {
 
 #[tokio::test]
 async fn test_list_ignores_empty_sessions() {
-    let _lock = ENV_LOCK.lock().unwrap();
+    let _lock = ENV_LOCK.lock().await;
     let home_dir = TempDir::new().expect("home dir");
     let _env = set_home_env(home_dir.path());
 
@@ -203,7 +203,7 @@ async fn test_list_ignores_empty_sessions() {
 
 #[tokio::test]
 async fn test_create_named_session() {
-    let _lock = ENV_LOCK.lock().unwrap();
+    let _lock = ENV_LOCK.lock().await;
     let home_dir = TempDir::new().expect("home dir");
     let _env = set_home_env(home_dir.path());
 

@@ -84,7 +84,7 @@ async fn test_default_agent() {
     let mut expected_tool_names: Vec<String> = spec
         .tools
         .iter()
-        .filter_map(|tool| tool.split(':').last())
+        .filter_map(|tool| tool.split(':').next_back())
         .map(|name| name.to_string())
         .collect();
     expected_tool_names.sort();

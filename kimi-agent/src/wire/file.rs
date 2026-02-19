@@ -212,11 +212,17 @@ impl std::fmt::Display for WireFile {
 fn load_protocol_version(path: &Path) -> Option<String> {
     let file = std::fs::File::open(path).ok()?;
     let reader = std::io::BufReader::new(file);
-    for line in reader.lines().flatten() {
+    for line in reader.lines() {
+        let line = match line {
+            Ok(l) => l,
+            Err(_) => return None,
+        };
+
         let line = line.trim();
         if line.is_empty() {
             continue;
         }
+
         return parse_wire_file_metadata(line).map(|meta| meta.protocol_version);
     }
     None

@@ -6,7 +6,7 @@ pub fn shorten_middle(text: &str, width: usize, remove_newline: bool) -> String 
     }
     let mut cleaned = text.to_string();
     if remove_newline {
-        cleaned = cleaned.replace('\n', " ").replace('\r', " ");
+        cleaned = cleaned.replace(['\n', '\r'], " ");
     }
     let half = width / 2;
     format!(

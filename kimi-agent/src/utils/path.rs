@@ -18,12 +18,11 @@ pub async fn next_available_rotation(path: &Path) -> Option<PathBuf> {
     if let Ok(entries) = tokio::fs::read_dir(parent).await {
         let mut entries = entries;
         while let Ok(Some(entry)) = entries.next_entry().await {
-            if let Some(name) = entry.file_name().to_str() {
-                if let Some(num) = parse_rotation_suffix(name, &base_name, &suffix) {
-                    if num > max_num {
-                        max_num = num;
-                    }
-                }
+            if let Some(name) = entry.file_name().to_str()
+                && let Some(num) = parse_rotation_suffix(name, &base_name, &suffix)
+                && num > max_num
+            {
+                max_num = num;
             }
         }
     }

@@ -196,7 +196,7 @@ impl CallableTool2 for ReadFile {
                 truncated_lines.push(current_line);
             }
             lines.push(truncated.clone());
-            n_bytes += truncated.as_bytes().len();
+            n_bytes += truncated.len();
             if lines.len() >= params.n_lines as usize {
                 break;
             }

@@ -169,25 +169,25 @@ pub(super) fn detect_file_type(path: &str, header: Option<&[u8]>) -> FileType {
         }
     }
 
-    if let Some(hint) = &media_hint {
-        if matches!(hint.kind, FileKind::Image | FileKind::Video) {
-            return hint.clone();
-        }
+    if let Some(hint) = &media_hint
+        && matches!(hint.kind, FileKind::Image | FileKind::Video)
+    {
+        return hint.clone();
     }
 
     if let Some(bytes) = header {
         if let Some(sniffed) = sniff_media_from_magic(bytes) {
-            if let Some(hint) = &media_hint {
-                if hint.kind != sniffed.kind {
-                    return FileType {
-                        kind: FileKind::Unknown,
-                        mime_type: String::new(),
-                    };
-                }
+            if let Some(hint) = &media_hint
+                && hint.kind != sniffed.kind
+            {
+                return FileType {
+                    kind: FileKind::Unknown,
+                    mime_type: String::new(),
+                };
             }
             return sniffed;
         }
-        if bytes.iter().any(|b| *b == 0) {
+        if bytes.contains(&0) {
             return FileType {
                 kind: FileKind::Unknown,
                 mime_type: String::new(),

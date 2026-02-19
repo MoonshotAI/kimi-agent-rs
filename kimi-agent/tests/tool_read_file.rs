@@ -492,7 +492,10 @@ async fn test_line_truncation_and_messaging() {
         .lines()
         .find(|line| !line.trim().is_empty())
         .expect("content line");
-    let actual_content = content_line.splitn(2, '\t').nth(1).unwrap_or(content_line);
+    let actual_content = content_line
+        .split_once('\t')
+        .map(|(_, content)| content)
+        .unwrap_or(content_line);
     assert_eq!(actual_content.len(), MAX_LINE_LENGTH);
 
     let multi_line_file = work_dir / "multi_truncation_test.txt";

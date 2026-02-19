@@ -7,8 +7,11 @@ use serde::{Deserialize, Serialize};
 use crate::message::{Message, StreamedMessagePart};
 use crate::tooling::Tool;
 
+pub mod anthropic;
 pub mod echo;
 pub mod kimi;
+pub mod openai_legacy;
+pub mod openai_responses;
 
 #[async_trait]
 pub trait StreamedMessage: Send {
@@ -58,6 +61,7 @@ pub enum ThinkingEffort {
     Low,
     Medium,
     High,
+    XHigh,
 }
 
 #[derive(Debug)]

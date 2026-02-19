@@ -6,9 +6,9 @@ use crate::message::{
     ThinkPart, ToolCall, ToolCallFunction, ToolCallPart, VideoURL, VideoURLPart,
 };
 
-pub fn parse_echo_script(
-    script: &str,
-) -> Result<(Vec<StreamedMessagePart>, Option<String>, Option<TokenUsage>), ChatProviderError> {
+type ParsedEchoScript = (Vec<StreamedMessagePart>, Option<String>, Option<TokenUsage>);
+
+pub fn parse_echo_script(script: &str) -> Result<ParsedEchoScript, ChatProviderError> {
     let mut parts = Vec::new();
     let mut message_id = None;
     let mut usage = None;
@@ -243,10 +243,15 @@ fn parse_tool_call(
 
 fn parse_tool_call_part(payload: &str) -> Result<ToolCallPart, ChatProviderError> {
     let value = parse_value(payload);
-    let arguments_part = if let Value::Object(map) = value {
-        map.get("arguments_part").cloned().unwrap_or(Value::Null)
+    let (arguments_part, tool_call_id) = if let Value::Object(map) = value {
+        (
+            map.get("arguments_part").cloned().unwrap_or(Value::Null),
+            map.get("tool_call_id")
+                .and_then(|v| v.as_str())
+                .map(ToString::to_string),
+        )
     } else {
-        value
+        (value, None)
     };
     let arguments_part = match arguments_part {
         Value::Null => None,
@@ -256,7 +261,10 @@ fn parse_tool_call_part(payload: &str) -> Result<ToolCallPart, ChatProviderError
         }
         other => Some(other.to_string()),
     };
-    Ok(ToolCallPart { arguments_part })
+    Ok(ToolCallPart {
+        arguments_part,
+        tool_call_id,
+    })
 }
 
 fn parse_mapping(

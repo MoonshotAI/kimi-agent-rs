@@ -166,7 +166,7 @@ where
 }
 
 pub fn get_current_wire_or_none() -> Option<Arc<Wire>> {
-    CURRENT_WIRE.try_with(|wire| Arc::clone(wire)).ok()
+    CURRENT_WIRE.try_with(Arc::clone).ok()
 }
 
 pub fn wire_send(msg: WireMessage) {

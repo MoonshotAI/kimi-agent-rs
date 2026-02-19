@@ -5,7 +5,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use kaos::KaosPath;
 
 use crate::agentspec::{default_agent_file, okabe_agent_file};
-use crate::app::{ConfigInput, KimiCLI};
+use crate::app::{ConfigInput, CreateOptions, KimiCLI};
 use crate::config::load_config_from_string;
 use crate::constant::VERSION;
 use crate::metadata::{load_metadata, save_metadata};
@@ -200,11 +200,11 @@ pub async fn run() -> Result<()> {
     let config_input = if let Some(config_string) = cli.config_string.as_ref() {
         let config = load_config_from_string(config_string)
             .map_err(|err| anyhow::anyhow!(err.to_string()))?;
-        Some(ConfigInput::Inline(config))
-    } else if let Some(config_file) = cli.config_file.as_ref() {
-        Some(ConfigInput::Path(config_file.clone()))
+        Some(ConfigInput::Inline(Box::new(config)))
     } else {
-        None
+        cli.config_file
+            .as_ref()
+            .map(|config_file| ConfigInput::Path(config_file.clone()))
     };
 
     let mcp_configs = mcp::load_mcp_configs(&cli.mcp_config_file, &cli.mcp_config).await?;
@@ -226,16 +226,18 @@ pub async fn run() -> Result<()> {
 
     let instance = KimiCLI::create(
         session,
-        config_input,
-        cli.model_name.as_deref(),
-        thinking,
-        cli.yolo,
-        agent_file.as_deref(),
-        mcp_configs,
-        skills_dir,
-        cli.max_steps_per_turn,
-        cli.max_retries_per_step,
-        cli.max_ralph_iterations,
+        CreateOptions {
+            config: config_input,
+            model_name: cli.model_name.clone(),
+            thinking,
+            yolo: cli.yolo,
+            agent_file,
+            mcp_configs,
+            skills_dir,
+            max_steps_per_turn: cli.max_steps_per_turn,
+            max_retries_per_step: cli.max_retries_per_step,
+            max_ralph_iterations: cli.max_ralph_iterations,
+        },
     )
     .await?;
 
@@ -246,19 +248,20 @@ pub async fn run() -> Result<()> {
 }
 
 async fn validate_cli_args(cli: &Cli) -> Result<()> {
-    let mut conflict_sets = Vec::new();
-    conflict_sets.push(vec![
-        ("--agent", cli.agent.is_some()),
-        ("--agent-file", cli.agent_file.is_some()),
-    ]);
-    conflict_sets.push(vec![
-        ("--continue", cli.continue_session),
-        ("--session", cli.session_id.is_some()),
-    ]);
-    conflict_sets.push(vec![
-        ("--config", cli.config_string.is_some()),
-        ("--config-file", cli.config_file.is_some()),
-    ]);
+    let conflict_sets = vec![
+        vec![
+            ("--agent", cli.agent.is_some()),
+            ("--agent-file", cli.agent_file.is_some()),
+        ],
+        vec![
+            ("--continue", cli.continue_session),
+            ("--session", cli.session_id.is_some()),
+        ],
+        vec![
+            ("--config", cli.config_string.is_some()),
+            ("--config-file", cli.config_file.is_some()),
+        ],
+    ];
 
     for option_set in conflict_sets {
         let active: Vec<&str> = option_set
@@ -275,16 +278,16 @@ async fn validate_cli_args(cli: &Cli) -> Result<()> {
         anyhow::bail!("Cannot combine --thinking and --no-thinking.");
     }
 
-    if let Some(session_id) = cli.session_id.as_ref() {
-        if session_id.trim().is_empty() {
-            anyhow::bail!("Session ID cannot be empty.");
-        }
+    if let Some(session_id) = cli.session_id.as_ref()
+        && session_id.trim().is_empty()
+    {
+        anyhow::bail!("Session ID cannot be empty.");
     }
 
-    if let Some(config_string) = cli.config_string.as_ref() {
-        if config_string.trim().is_empty() {
-            anyhow::bail!("Config cannot be empty.");
-        }
+    if let Some(config_string) = cli.config_string.as_ref()
+        && config_string.trim().is_empty()
+    {
+        anyhow::bail!("Config cannot be empty.");
     }
 
     if let Some(work_dir) = cli.work_dir.as_ref() {
@@ -307,22 +310,22 @@ async fn validate_cli_args(cli: &Cli) -> Result<()> {
         ensure_file_exists(path, "MCP config file").await?;
     }
 
-    if let Some(max_steps) = cli.max_steps_per_turn {
-        if max_steps < 1 {
-            anyhow::bail!("max-steps-per-turn must be >= 1.");
-        }
+    if let Some(max_steps) = cli.max_steps_per_turn
+        && max_steps < 1
+    {
+        anyhow::bail!("max-steps-per-turn must be >= 1.");
     }
 
-    if let Some(max_retries) = cli.max_retries_per_step {
-        if max_retries < 1 {
-            anyhow::bail!("max-retries-per-step must be >= 1.");
-        }
+    if let Some(max_retries) = cli.max_retries_per_step
+        && max_retries < 1
+    {
+        anyhow::bail!("max-retries-per-step must be >= 1.");
     }
 
-    if let Some(max_ralph) = cli.max_ralph_iterations {
-        if max_ralph < -1 {
-            anyhow::bail!("max-ralph-iterations must be >= -1.");
-        }
+    if let Some(max_ralph) = cli.max_ralph_iterations
+        && max_ralph < -1
+    {
+        anyhow::bail!("max-ralph-iterations must be >= -1.");
     }
 
     Ok(())

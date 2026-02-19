@@ -52,11 +52,11 @@ pub async fn load_agents_md(work_dir: &KaosPath) -> Option<String> {
         work_dir.clone() / "agents.md",
     ];
     for path in candidates {
-        if path.is_file(true).await {
-            if let Ok(text) = path.read_text().await {
-                info!("Loaded agents.md: {}", path.to_string_lossy());
-                return Some(text.trim().to_string());
-            }
+        if path.is_file(true).await
+            && let Ok(text) = path.read_text().await
+        {
+            info!("Loaded agents.md: {}", path.to_string_lossy());
+            return Some(text.trim().to_string());
         }
     }
     info!("No AGENTS.md found in {}", work_dir.to_string_lossy());

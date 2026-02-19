@@ -107,12 +107,11 @@ pub fn parse_slash_command_call(user_input: &str) -> Option<SlashCommandCall> {
     let command_name = captures.get(1)?.as_str();
     let whole_match = captures.get(0)?;
 
-    if let Some(rest) = user_input.get(whole_match.end()..) {
-        if let Some(next_char) = rest.chars().next() {
-            if !next_char.is_whitespace() {
-                return None;
-            }
-        }
+    if let Some(rest) = user_input.get(whole_match.end()..)
+        && let Some(next_char) = rest.chars().next()
+        && !next_char.is_whitespace()
+    {
+        return None;
     }
 
     let raw_args = user_input

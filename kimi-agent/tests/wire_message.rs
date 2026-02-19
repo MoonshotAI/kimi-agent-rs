@@ -139,6 +139,7 @@ fn test_wire_message_serde() {
 
     let msg = WireMessage::ToolCallPart(ToolCallPart {
         arguments_part: Some("}".to_string()),
+        tool_call_id: None,
     });
     assert_eq!(
         serialize_wire_message(&msg).unwrap(),

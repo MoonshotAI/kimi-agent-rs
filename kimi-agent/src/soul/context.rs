@@ -141,10 +141,10 @@ impl Context {
                 continue;
             }
             let value: serde_json::Value = serde_json::from_str(&line)?;
-            if value.get("role").and_then(|v| v.as_str()) == Some("_checkpoint") {
-                if value.get("id").and_then(|v| v.as_i64()) == Some(checkpoint_id) {
-                    break;
-                }
+            if value.get("role").and_then(|v| v.as_str()) == Some("_checkpoint")
+                && value.get("id").and_then(|v| v.as_i64()) == Some(checkpoint_id)
+            {
+                break;
             }
             new_file.write_all(line.as_bytes()).await?;
             new_file.write_all(b"\n").await?;
@@ -246,10 +246,10 @@ fn strip_message_nulls(value: &mut serde_json::Value) {
         if matches!(call_map.get("extras"), Some(serde_json::Value::Null)) {
             call_map.remove("extras");
         }
-        if let Some(serde_json::Value::Object(function)) = call_map.get_mut("function") {
-            if matches!(function.get("arguments"), Some(serde_json::Value::Null)) {
-                function.remove("arguments");
-            }
+        if let Some(serde_json::Value::Object(function)) = call_map.get_mut("function")
+            && matches!(function.get("arguments"), Some(serde_json::Value::Null))
+        {
+            function.remove("arguments");
         }
     }
 }

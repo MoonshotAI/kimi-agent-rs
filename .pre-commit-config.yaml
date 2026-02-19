@@ -9,8 +9,13 @@ repos:
         entry: cargo fmt
         language: system
         pass_filenames: false
-      - id: cargo-check
-        name: cargo check
-        entry: cargo check
+      - id: cargo-clippy
+        name: cargo clippy
+        entry: cargo clippy --workspace --all-targets
+        language: system
+        pass_filenames: false
+      - id: cargo-machete
+        name: cargo machete
+        entry: cargo machete --with-metadata --skip-target-dir kaos kosong kimi-agent
         language: system
         pass_filenames: false

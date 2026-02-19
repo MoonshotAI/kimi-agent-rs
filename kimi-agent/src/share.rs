@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
 pub fn get_share_dir() -> PathBuf {
-    if let Some(path) = std::env::var_os("KIMI_SHARE_DIR") {
-        if !path.is_empty() {
-            return PathBuf::from(path);
-        }
+    if let Some(path) = std::env::var_os("KIMI_SHARE_DIR")
+        && !path.is_empty()
+    {
+        return PathBuf::from(path);
     }
     dirs::home_dir()
         .expect("HOME directory is not available")

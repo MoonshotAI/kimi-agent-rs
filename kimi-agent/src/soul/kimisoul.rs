@@ -357,7 +357,7 @@ impl KimiSoul {
     }
 
     async fn turn(&self, user_message: Message) -> Result<TurnOutcome, anyhow::Error> {
-        let llm = self.runtime.llm.as_ref().ok_or_else(|| LLMNotSet)?;
+        let llm = self.runtime.llm.as_ref().ok_or(LLMNotSet)?;
         let missing = check_message(&user_message, &llm.capabilities);
         if !missing.is_empty() {
             return Err(anyhow::Error::new(LLMNotSupported::new(
@@ -471,7 +471,7 @@ impl KimiSoul {
     }
 
     async fn step(&self) -> Result<Option<StepOutcome>, anyhow::Error> {
-        let llm = self.runtime.llm.as_ref().ok_or_else(|| LLMNotSet)?;
+        let llm = self.runtime.llm.as_ref().ok_or(LLMNotSet)?;
 
         let mut attempts = 0usize;
         let (result, forward_task) = loop {
@@ -626,7 +626,7 @@ impl KimiSoul {
             result.tool_calls.len(),
             result.usage.is_some()
         );
-        let llm = self.runtime.llm.as_ref().ok_or_else(|| LLMNotSet)?;
+        let llm = self.runtime.llm.as_ref().ok_or(LLMNotSet)?;
         let tool_messages: Vec<Message> = tool_results.iter().map(tool_result_to_message).collect();
         for message in &tool_messages {
             let missing = check_message(message, &llm.capabilities);
@@ -660,7 +660,7 @@ impl KimiSoul {
         let mut attempts = 0usize;
         let compacted = loop {
             attempts += 1;
-            let llm = self.runtime.llm.as_ref().ok_or_else(|| LLMNotSet)?;
+            let llm = self.runtime.llm.as_ref().ok_or(LLMNotSet)?;
             let history = { self.context.lock().await.history().to_vec() };
             match self.compaction.compact(&history, llm).await {
                 Ok(compacted) => break compacted,
@@ -934,14 +934,13 @@ impl FlowRunner {
                 .final_message
                 .as_ref()
                 .and_then(|msg| parse_choice(&msg.extract_text(" ")));
-            if let Some(choice_value) = choice.as_ref() {
-                if let Some(next_id) = edges
+            if let Some(choice_value) = choice.as_ref()
+                && let Some(next_id) = edges
                     .iter()
                     .find(|edge| edge.label.as_deref() == Some(choice_value.as_str()))
                     .map(|edge| edge.dst.clone())
-                {
-                    return Ok((Some(next_id), steps_used));
-                }
+            {
+                return Ok((Some(next_id), steps_used));
             }
             let options = edges
                 .iter()

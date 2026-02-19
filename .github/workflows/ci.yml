@@ -43,13 +43,18 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt
+          components: rustfmt, clippy
 
       - name: Cargo fmt
         run: cargo fmt --all -- --check
 
-      - name: Cargo check
-        run: cargo check
+      - name: Cargo machete
+        uses: bnjbvr/cargo-machete@main
+        with:
+          args: --with-metadata --skip-target-dir kaos kosong kimi-agent
+
+      - name: Cargo clippy
+        run: cargo clippy --workspace --all-targets
 
       - name: Cargo test
         run: cargo test

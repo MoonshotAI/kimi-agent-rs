@@ -17,24 +17,26 @@ use crate::chat_provider::{
 };
 use crate::message::{
     ContentPart, Message, StreamedMessagePart, TextPart, ThinkPart, ToolCall, ToolCallFunction,
-    ToolCallPart, VideoURL, VideoURLPart,
+    ToolCallPart,
 };
 use crate::tooling::Tool;
 
 type ByteStream = Pin<Box<dyn futures::Stream<Item = Result<Bytes, reqwest::Error>> + Send>>;
-type ParsedKimiResponse = (Vec<StreamedMessagePart>, Option<String>, Option<TokenUsage>);
+type ParsedOpenAIResponse = (Vec<StreamedMessagePart>, Option<String>, Option<TokenUsage>);
 
 #[derive(Clone)]
-pub struct Kimi {
+pub struct OpenAILegacy {
+    provider_name: String,
     model: String,
     api_key: String,
     base_url: Url,
     stream: bool,
     client: Client,
     generation_kwargs: Map<String, Value>,
+    reasoning_key: Option<String>,
 }
 
-impl Kimi {
+impl OpenAILegacy {
     pub fn new(
         model: impl Into<String>,
         api_key: Option<String>,
@@ -42,16 +44,13 @@ impl Kimi {
         default_headers: Option<HeaderMap>,
     ) -> Result<Self, ChatProviderError> {
         let api_key = api_key
-            .or_else(|| env::var("KIMI_API_KEY").ok())
-            .ok_or_else(|| {
-                ChatProviderError::new(
-                    ChatProviderErrorKind::Other,
-                    "The api_key client option or the KIMI_API_KEY environment variable is not set",
-                )
-            })?;
+            .filter(|value| !value.is_empty())
+            .or_else(|| env::var("OPENAI_API_KEY").ok())
+            .unwrap_or_default();
         let mut base_url = base_url
-            .or_else(|| env::var("KIMI_BASE_URL").ok())
-            .unwrap_or_else(|| "https://api.moonshot.ai/v1".to_string());
+            .filter(|value| !value.is_empty())
+            .or_else(|| env::var("OPENAI_BASE_URL").ok())
+            .unwrap_or_else(|| "https://api.openai.com/v1".to_string());
         if !base_url.ends_with('/') {
             base_url.push('/');
         }
@@ -84,13 +83,20 @@ impl Kimi {
             .map_err(|err| ChatProviderError::new(ChatProviderErrorKind::Other, err.to_string()))?;
 
         Ok(Self {
+            provider_name: "openai".to_string(),
             model: model.into(),
             api_key,
             base_url,
             stream: true,
             client,
             generation_kwargs: Map::new(),
+            reasoning_key: None,
         })
+    }
+
+    pub fn with_provider_name(mut self, provider_name: impl Into<String>) -> Self {
+        self.provider_name = provider_name.into();
+        self
     }
 
     pub fn with_stream(mut self, stream: bool) -> Self {
@@ -98,27 +104,15 @@ impl Kimi {
         self
     }
 
+    pub fn with_reasoning_key(mut self, reasoning_key: Option<String>) -> Self {
+        self.reasoning_key = reasoning_key;
+        self
+    }
+
     pub fn with_generation_kwargs(mut self, kwargs: Map<String, Value>) -> Self {
         for (k, v) in kwargs {
             self.generation_kwargs.insert(k, v);
         }
-        self
-    }
-
-    pub fn with_extra_body(mut self, extra_body: Value) -> Self {
-        let mut merged = Map::new();
-        if let Some(Value::Object(existing)) = self.generation_kwargs.get("extra_body") {
-            for (k, v) in existing {
-                merged.insert(k.clone(), v.clone());
-            }
-        }
-        if let Value::Object(extra) = extra_body {
-            for (k, v) in extra {
-                merged.insert(k, v);
-            }
-        }
-        self.generation_kwargs
-            .insert("extra_body".to_string(), Value::Object(merged));
         self
     }
 
@@ -133,20 +127,12 @@ impl Kimi {
         }
         params
     }
-
-    pub fn files(&self) -> KimiFiles {
-        KimiFiles {
-            client: self.client.clone(),
-            api_key: self.api_key.clone(),
-            base_url: self.base_url.clone(),
-        }
-    }
 }
 
 #[async_trait]
-impl ChatProvider for Kimi {
+impl ChatProvider for OpenAILegacy {
     fn name(&self) -> &str {
-        "kimi"
+        &self.provider_name
     }
 
     fn model_name(&self) -> &str {
@@ -156,12 +142,13 @@ impl ChatProvider for Kimi {
     fn thinking_effort(&self) -> Option<ThinkingEffort> {
         match self.generation_kwargs.get("reasoning_effort") {
             Some(Value::String(value)) => match value.as_str() {
-                "low" => Some(ThinkingEffort::Low),
+                "low" | "minimal" => Some(ThinkingEffort::Low),
                 "medium" => Some(ThinkingEffort::Medium),
                 "high" => Some(ThinkingEffort::High),
                 "xhigh" => Some(ThinkingEffort::XHigh),
                 _ => Some(ThinkingEffort::Off),
             },
+            Some(Value::Null) => Some(ThinkingEffort::Off),
             _ => None,
         }
     }
@@ -177,7 +164,7 @@ impl ChatProvider for Kimi {
             messages.push(json!({"role": "system", "content": system_prompt}));
         }
         for message in history {
-            messages.push(convert_message(message)?);
+            messages.push(convert_message(message, self.reasoning_key.as_deref())?);
         }
 
         let mut tool_defs = Vec::new();
@@ -193,23 +180,8 @@ impl ChatProvider for Kimi {
         if self.stream {
             body.insert("stream_options".to_string(), json!({"include_usage": true}));
         }
-        let mut generation_kwargs = Map::new();
-        generation_kwargs.insert("max_tokens".to_string(), Value::from(32000));
         for (k, v) in &self.generation_kwargs {
-            generation_kwargs.insert(k.clone(), v.clone());
-        }
-        let extra_body = match generation_kwargs.remove("extra_body") {
-            Some(Value::Object(map)) => Some(map),
-            _ => None,
-        };
-
-        for (k, v) in generation_kwargs {
-            body.insert(k, v);
-        }
-        if let Some(extra_body) = extra_body {
-            for (k, v) in extra_body {
-                body.insert(k, v);
-            }
+            body.insert(k.clone(), v.clone());
         }
 
         let url = self
@@ -217,10 +189,12 @@ impl ChatProvider for Kimi {
             .join("chat/completions")
             .map_err(|err| ChatProviderError::new(ChatProviderErrorKind::Other, err.to_string()))?;
 
-        let resp = self
-            .client
-            .post(url)
-            .header(AUTHORIZATION, format!("Bearer {}", self.api_key))
+        let mut request = self.client.post(url);
+        if !self.api_key.is_empty() {
+            request = request.header(AUTHORIZATION, format!("Bearer {}", self.api_key));
+        }
+
+        let resp = request
             .json(&body)
             .send()
             .await
@@ -231,16 +205,20 @@ impl ChatProvider for Kimi {
             let text = resp.text().await.unwrap_or_default();
             return Err(ChatProviderError::new(
                 ChatProviderErrorKind::Status(status.as_u16()),
-                format!("Kimi API error ({status}): {text}"),
+                format!("OpenAI API error ({status}): {text}"),
             ));
         }
 
         if self.stream {
-            Ok(Box::new(KimiStreamedMessage::new_stream(resp)))
+            Ok(Box::new(OpenAIStreamedMessage::new_stream(
+                resp,
+                self.reasoning_key.clone(),
+            )))
         } else {
             let value: Value = resp.json().await.map_err(map_reqwest_error)?;
-            let (parts, message_id, usage) = parse_non_stream_response(&value)?;
-            Ok(Box::new(KimiStreamedMessage::new_parts(
+            let (parts, message_id, usage) =
+                parse_non_stream_response(&value, self.reasoning_key.as_deref())?;
+            Ok(Box::new(OpenAIStreamedMessage::new_parts(
                 parts, message_id, usage,
             )))
         }
@@ -264,16 +242,7 @@ impl ChatProvider for Kimi {
             kwargs.insert("reasoning_effort".to_string(), Value::Null);
         }
 
-        let mut extra_body = Map::new();
-        extra_body.insert(
-            "thinking".to_string(),
-            json!({"type": if matches!(effort, ThinkingEffort::Off) {"disabled"} else {"enabled"}}),
-        );
-
-        let provider = self
-            .clone()
-            .with_generation_kwargs(kwargs)
-            .with_extra_body(Value::Object(extra_body));
+        let provider = self.clone().with_generation_kwargs(kwargs);
         Box::new(provider)
     }
 
@@ -282,85 +251,18 @@ impl ChatProvider for Kimi {
     }
 }
 
-pub struct KimiFiles {
-    client: Client,
-    api_key: String,
-    base_url: Url,
-}
-
-impl KimiFiles {
-    pub async fn upload_video(
-        &self,
-        data: Vec<u8>,
-        mime_type: &str,
-    ) -> Result<VideoURLPart, ChatProviderError> {
-        if !mime_type.starts_with("video/") {
-            return Err(ChatProviderError::new(
-                ChatProviderErrorKind::Other,
-                format!("Expected a video mime type, got {mime_type}"),
-            ));
-        }
-        let filename = guess_filename(mime_type);
-        let form = reqwest::multipart::Form::new()
-            .text("purpose", "video")
-            .part(
-                "file",
-                reqwest::multipart::Part::bytes(data)
-                    .file_name(filename)
-                    .mime_str(mime_type)
-                    .map_err(|err| {
-                        ChatProviderError::new(ChatProviderErrorKind::Other, err.to_string())
-                    })?,
-            );
-
-        let url = self
-            .base_url
-            .join("files")
-            .map_err(|err| ChatProviderError::new(ChatProviderErrorKind::Other, err.to_string()))?;
-
-        let resp = self
-            .client
-            .post(url)
-            .header(AUTHORIZATION, format!("Bearer {}", self.api_key))
-            .multipart(form)
-            .send()
-            .await
-            .map_err(map_reqwest_error)?;
-
-        if !resp.status().is_success() {
-            let status = resp.status();
-            let text = resp.text().await.unwrap_or_default();
-            return Err(ChatProviderError::new(
-                ChatProviderErrorKind::Status(status.as_u16()),
-                format!("Kimi file upload error ({status}): {text}"),
-            ));
-        }
-
-        let value: Value = resp.json().await.map_err(map_reqwest_error)?;
-        let file_id = value.get("id").and_then(|v| v.as_str()).ok_or_else(|| {
-            ChatProviderError::new(ChatProviderErrorKind::Other, "Missing file id")
-        })?;
-        Ok(VideoURLPart {
-            kind: "video_url".to_string(),
-            video_url: VideoURL {
-                url: format!("ms://{file_id}"),
-                id: None,
-            },
-        })
-    }
-}
-
-pub struct KimiStreamedMessage {
+pub struct OpenAIStreamedMessage {
     stream: Option<ByteStream>,
     buffer: String,
     parts: VecDeque<StreamedMessagePart>,
     id: Option<String>,
     usage: Option<TokenUsage>,
+    reasoning_key: Option<String>,
     tool_call_id_by_index: HashMap<i64, String>,
 }
 
-impl KimiStreamedMessage {
-    pub fn new_stream(resp: reqwest::Response) -> Self {
+impl OpenAIStreamedMessage {
+    pub fn new_stream(resp: reqwest::Response, reasoning_key: Option<String>) -> Self {
         let stream = resp.bytes_stream();
         Self {
             stream: Some(Box::pin(stream)),
@@ -368,6 +270,7 @@ impl KimiStreamedMessage {
             parts: VecDeque::new(),
             id: None,
             usage: None,
+            reasoning_key,
             tool_call_id_by_index: HashMap::new(),
         }
     }
@@ -383,11 +286,12 @@ impl KimiStreamedMessage {
             parts: parts.into(),
             id,
             usage,
+            reasoning_key: None,
             tool_call_id_by_index: HashMap::new(),
         }
     }
 
-    fn ingest_chunk(&mut self, value: &Value) -> Result<(), ChatProviderError> {
+    fn ingest_chunk(&mut self, value: &Value) {
         if let Some(id) = value.get("id").and_then(|v| v.as_str()) {
             self.id = Some(id.to_string());
         }
@@ -406,16 +310,20 @@ impl KimiStreamedMessage {
         if let Some(choices) = value.get("choices").and_then(|v| v.as_array()) {
             for choice in choices {
                 if let Some(delta) = choice.get("delta") {
-                    ingest_delta(delta, &mut self.tool_call_id_by_index, &mut self.parts);
+                    ingest_delta(
+                        delta,
+                        self.reasoning_key.as_deref(),
+                        &mut self.tool_call_id_by_index,
+                        &mut self.parts,
+                    );
                 }
             }
         }
-        Ok(())
     }
 }
 
 #[async_trait]
-impl StreamedMessage for KimiStreamedMessage {
+impl StreamedMessage for OpenAIStreamedMessage {
     async fn next_part(&mut self) -> Result<Option<StreamedMessagePart>, ChatProviderError> {
         loop {
             if let Some(part) = self.parts.pop_front() {
@@ -438,7 +346,7 @@ impl StreamedMessage for KimiStreamedMessage {
                         if let Some(data) = line.strip_prefix("data: ") {
                             if data.trim() == "[DONE]" {
                                 self.stream = None;
-                                return Ok(None);
+                                break;
                             }
                             let value: Value = serde_json::from_str(data).map_err(|err| {
                                 ChatProviderError::new(
@@ -446,7 +354,7 @@ impl StreamedMessage for KimiStreamedMessage {
                                     err.to_string(),
                                 )
                             })?;
-                            self.ingest_chunk(&value)?;
+                            self.ingest_chunk(&value);
                         }
                     }
                 }
@@ -468,13 +376,18 @@ impl StreamedMessage for KimiStreamedMessage {
     }
 }
 
-fn convert_message(message: &Message) -> Result<Value, ChatProviderError> {
+fn convert_message(
+    message: &Message,
+    reasoning_key: Option<&str>,
+) -> Result<Value, ChatProviderError> {
     let mut reasoning_content = String::new();
     let mut content_parts = Vec::new();
     for part in &message.content {
         match part {
             ContentPart::Think(think) => {
-                reasoning_content.push_str(&think.think);
+                if reasoning_key.is_some() {
+                    reasoning_content.push_str(&think.think);
+                }
             }
             _ => content_parts.push(part.clone()),
         }
@@ -492,12 +405,10 @@ fn convert_message(message: &Message) -> Result<Value, ChatProviderError> {
 
     let mut payload = strip_nulls(payload);
     if !reasoning_content.is_empty()
+        && let Some(reasoning_key) = reasoning_key
         && let Value::Object(map) = &mut payload
     {
-        map.insert(
-            "reasoning_content".to_string(),
-            Value::String(reasoning_content),
-        );
+        map.insert(reasoning_key.to_string(), Value::String(reasoning_content));
     }
     Ok(payload)
 }
@@ -520,24 +431,20 @@ fn strip_nulls(value: Value) -> Value {
 }
 
 fn convert_tool(tool: &Tool) -> Value {
-    if tool.name.starts_with('$') {
-        json!({
-            "type": "builtin_function",
-            "function": {"name": tool.name},
-        })
-    } else {
-        json!({
-            "type": "function",
-            "function": {
-                "name": tool.name,
-                "description": tool.description,
-                "parameters": tool.parameters,
-            }
-        })
-    }
+    json!({
+        "type": "function",
+        "function": {
+            "name": tool.name,
+            "description": tool.description,
+            "parameters": tool.parameters,
+        }
+    })
 }
 
-fn parse_non_stream_response(value: &Value) -> Result<ParsedKimiResponse, ChatProviderError> {
+fn parse_non_stream_response(
+    value: &Value,
+    reasoning_key: Option<&str>,
+) -> Result<ParsedOpenAIResponse, ChatProviderError> {
     let message_id = value
         .get("id")
         .and_then(|v| v.as_str())
@@ -561,10 +468,11 @@ fn parse_non_stream_response(value: &Value) -> Result<ParsedKimiResponse, ChatPr
     })?;
 
     let mut parts = Vec::new();
-    if let Some(reasoning) = message
-        .get("reasoning_content")
-        .and_then(|v| v.as_str())
-        .filter(|s| !s.is_empty())
+    if let Some(reasoning_key) = reasoning_key
+        && let Some(reasoning) = message
+            .get(reasoning_key)
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
     {
         parts.push(StreamedMessagePart::Content(ContentPart::Think(
             ThinkPart {
@@ -574,13 +482,16 @@ fn parse_non_stream_response(value: &Value) -> Result<ParsedKimiResponse, ChatPr
             },
         )));
     }
-    if let Some(content) = message.get("content").and_then(|v| v.as_str())
-        && !content.is_empty()
-    {
+
+    if let Some(content) = message.get("content") {
+        ingest_content_value(content, &mut parts);
+    }
+    if let Some(refusal) = message.get("refusal").and_then(refusal_text) {
         parts.push(StreamedMessagePart::Content(ContentPart::Text(
-            TextPart::new(content),
+            TextPart::new(refusal),
         )));
     }
+
     if let Some(tool_calls) = message.get("tool_calls").and_then(|v| v.as_array()) {
         for tool_call in tool_calls {
             if let Some(call) = parse_tool_call(tool_call) {
@@ -594,13 +505,15 @@ fn parse_non_stream_response(value: &Value) -> Result<ParsedKimiResponse, ChatPr
 
 fn ingest_delta(
     delta: &Value,
+    reasoning_key: Option<&str>,
     tool_call_id_by_index: &mut HashMap<i64, String>,
     parts: &mut VecDeque<StreamedMessagePart>,
 ) {
-    if let Some(reasoning) = delta
-        .get("reasoning_content")
-        .and_then(|v| v.as_str())
-        .filter(|s| !s.is_empty())
+    if let Some(reasoning_key) = reasoning_key
+        && let Some(reasoning) = delta
+            .get(reasoning_key)
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
     {
         parts.push_back(StreamedMessagePart::Content(ContentPart::Think(
             ThinkPart {
@@ -610,15 +523,20 @@ fn ingest_delta(
             },
         )));
     }
-    if let Some(content) = delta
-        .get("content")
-        .and_then(|v| v.as_str())
-        .filter(|s| !s.is_empty())
-    {
+
+    if let Some(content) = delta.get("content") {
+        let mut content_parts = Vec::new();
+        ingest_content_value(content, &mut content_parts);
+        for part in content_parts {
+            parts.push_back(part);
+        }
+    }
+    if let Some(refusal) = delta.get("refusal").and_then(refusal_text) {
         parts.push_back(StreamedMessagePart::Content(ContentPart::Text(
-            TextPart::new(content),
+            TextPart::new(refusal),
         )));
     }
+
     if let Some(tool_calls) = delta.get("tool_calls").and_then(|v| v.as_array()) {
         for tool_call in tool_calls {
             if let Some(part) = parse_tool_call_delta(tool_call, tool_call_id_by_index) {
@@ -628,13 +546,66 @@ fn ingest_delta(
     }
 }
 
+fn ingest_content_value(content: &Value, parts: &mut Vec<StreamedMessagePart>) {
+    if let Some(text) = content.as_str().filter(|s| !s.is_empty()) {
+        parts.push(StreamedMessagePart::Content(ContentPart::Text(
+            TextPart::new(text),
+        )));
+        return;
+    }
+
+    if let Some(items) = content.as_array() {
+        for item in items {
+            if let Some(text) = item
+                .get("text")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+            {
+                parts.push(StreamedMessagePart::Content(ContentPart::Text(
+                    TextPart::new(text),
+                )));
+            }
+        }
+    }
+}
+
+fn refusal_text(value: &Value) -> Option<String> {
+    if let Some(text) = value.as_str().filter(|s| !s.is_empty()) {
+        return Some(text.to_string());
+    }
+
+    if let Some(text) = value
+        .get("refusal")
+        .or_else(|| value.get("text"))
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+    {
+        return Some(text.to_string());
+    }
+
+    if let Some(items) = value.as_array() {
+        let texts: Vec<String> = items
+            .iter()
+            .filter_map(|item| {
+                item.get("refusal")
+                    .or_else(|| item.get("text"))
+                    .and_then(|v| v.as_str())
+                    .filter(|s| !s.is_empty())
+                    .map(ToString::to_string)
+            })
+            .collect();
+        if !texts.is_empty() {
+            return Some(texts.join("\n"));
+        }
+    }
+
+    None
+}
+
 fn parse_tool_call(tool_call: &Value) -> Option<ToolCall> {
     let function = tool_call.get("function")?;
     let name = function.get("name")?.as_str()?.to_string();
-    let arguments = function
-        .get("arguments")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
+    let arguments = function.get("arguments").and_then(stringify_json_value);
     let id = tool_call
         .get("id")
         .and_then(|v| v.as_str())
@@ -660,7 +631,7 @@ fn parse_tool_call_delta(
         .filter(|s| !s.is_empty());
     let arguments = function
         .get("arguments")
-        .and_then(|v| v.as_str())
+        .and_then(stringify_json_value)
         .filter(|s| !s.is_empty());
     if let Some(name) = name {
         let call = ToolCall {
@@ -668,7 +639,7 @@ fn parse_tool_call_delta(
             id: tool_call_id.clone(),
             function: ToolCallFunction {
                 name: name.to_string(),
-                arguments: arguments.map(|s| s.to_string()),
+                arguments,
             },
             extras: None,
         };
@@ -676,7 +647,7 @@ fn parse_tool_call_delta(
     }
     if let Some(arguments) = arguments {
         let part = ToolCallPart {
-            arguments_part: Some(arguments.to_string()),
+            arguments_part: Some(arguments),
             tool_call_id: Some(tool_call_id),
         };
         return Some(StreamedMessagePart::ToolCallPart(part));
@@ -717,6 +688,16 @@ fn stream_tool_call_id(
     Uuid::new_v4().to_string()
 }
 
+fn stringify_json_value(value: &Value) -> Option<String> {
+    if let Some(text) = value.as_str() {
+        return Some(text.to_string());
+    }
+    if value.is_null() {
+        return None;
+    }
+    serde_json::to_string(value).ok()
+}
+
 fn parse_usage(value: &Value) -> Option<TokenUsage> {
     let prompt_tokens = value.get("prompt_tokens")?.as_i64()?;
     let completion_tokens = value.get("completion_tokens")?.as_i64()?;
@@ -741,16 +722,6 @@ fn parse_usage(value: &Value) -> Option<TokenUsage> {
     })
 }
 
-fn guess_filename(mime_type: &str) -> String {
-    let extension = match mime_type {
-        "video/mp4" => ".mp4",
-        "video/quicktime" => ".mov",
-        "video/webm" => ".webm",
-        _ => ".bin",
-    };
-    format!("upload{}", extension)
-}
-
 fn map_reqwest_error(err: reqwest::Error) -> ChatProviderError {
     if err.is_timeout() {
         ChatProviderError::new(ChatProviderErrorKind::Timeout, err.to_string())
@@ -758,5 +729,44 @@ fn map_reqwest_error(err: reqwest::Error) -> ChatProviderError {
         ChatProviderError::new(ChatProviderErrorKind::Connection, err.to_string())
     } else {
         ChatProviderError::new(ChatProviderErrorKind::Other, err.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_non_stream_response_with_reasoning_and_tool_call() {
+        let value = json!({
+            "id": "chatcmpl-test",
+            "usage": {
+                "prompt_tokens": 10,
+                "completion_tokens": 5,
+                "prompt_tokens_details": { "cached_tokens": 2 }
+            },
+            "choices": [
+                {
+                    "message": {
+                        "reasoning": "step by step",
+                        "content": "hello",
+                        "tool_calls": [
+                            {
+                                "id": "call-1",
+                                "function": {
+                                    "name": "sum",
+                                    "arguments": "{\"a\":1}"
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        });
+
+        let (parts, id, usage) = parse_non_stream_response(&value, Some("reasoning")).unwrap();
+        assert_eq!(id.as_deref(), Some("chatcmpl-test"));
+        assert_eq!(usage.expect("usage").input_cache_read, 2);
+        assert_eq!(parts.len(), 3);
     }
 }
