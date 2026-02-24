@@ -167,6 +167,8 @@ impl CallableTool2 for Grep {
         }
         command.arg(&params.pattern);
         command.arg(&params.path);
+        // Avoid hanging when ripgrep reads stdin (e.g. path "-" or "/dev/stdin").
+        command.stdin(std::process::Stdio::null());
 
         let output = match command.output().await {
             Ok(output) => output,
