@@ -14,10 +14,20 @@ use crate::{
 
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
+#[cfg(unix)]
+use std::os::unix::process::ExitStatusExt;
 #[cfg(not(unix))]
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct LocalKaos;
+
+fn process_returncode(status: std::process::ExitStatus) -> i32 {
+    #[cfg(unix)]
+    if let Some(signal) = status.signal() {
+        return -signal;
+    }
+    status.code().unwrap_or(0)
+}
 
 impl LocalKaos {
     pub fn new() -> Self {
@@ -46,14 +56,14 @@ impl KaosProcess for LocalProcess {
             return self.exit_status;
         }
         if let Ok(Some(status)) = self.child.try_wait() {
-            self.exit_status = Some(status.code().unwrap_or(0));
+            self.exit_status = Some(process_returncode(status));
         }
         self.exit_status
     }
 
     async fn wait(&mut self) -> Result<i32> {
         let status = self.child.wait().await?;
-        let code = status.code().unwrap_or(0);
+        let code = process_returncode(status);
         self.exit_status = Some(code);
         Ok(code)
     }
