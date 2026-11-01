@@ -27,3 +27,4 @@
 
 - `KaosProcess::take_stdout()` / `take_stderr()` allow moving pipes for concurrent reads.
 - `stdout()` / `stderr()` fall back to empty readers if streams are already taken.
+- Process `wait()` and `returncode()` preserve Python semantics: Unix signal exits are negative signal numbers, not zero.
